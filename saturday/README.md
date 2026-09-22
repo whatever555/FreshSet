@@ -82,7 +82,7 @@ Also copy `Saturday.rpl` as `Saturday.jsfx.rpl` if factory presets do not appear
 
 Pre-built binaries for **macOS**, **Windows**, and **Linux** are published on GitHub when a release is tagged:
 
-**[Download latest release →](https://github.com/whatever555/Saturday/releases)**
+**[Download latest release →](https://github.com/whatever555/FreshSet/releases)**
 
 | Download | Contents | Install location |
 |----------|----------|------------------|
@@ -128,7 +128,7 @@ Rescan or restart the DAW after installing.
 | UI | Simple | Full boutique UI |
 | Factory presets (29) | Yes — `Saturday.rpl` in FX dropdown | Not yet — save DAW/plugin presets manually |
 | CPU | Very light | Slightly higher (JUCE wrapper) |
-| Install | `./install.sh` | Download from [Releases](https://github.com/whatever555/Saturday/releases) |
+| Install | `./install.sh` | Download from [Releases](https://github.com/whatever555/FreshSet/releases) |
 
 **Build from source (optional)**
 

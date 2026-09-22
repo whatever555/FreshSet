@@ -12,7 +12,7 @@ Native plugin with the full boutique UI. DSP matches **`../Saturday.jsfx`**.
 
 No Xcode or compiler needed — grab a pre-built zip for your OS:
 
-**[GitHub Releases →](https://github.com/whatever555/Saturday/releases)**
+**[GitHub Releases →](https://github.com/whatever555/FreshSet/releases)**
 
 | Platform | Zip | Plug-in formats |
 |----------|-----|-----------------|
