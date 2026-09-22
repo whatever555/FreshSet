@@ -117,11 +117,17 @@ jobs:
             libgl1-mesa-dev libglu1-mesa-dev mesa-common-dev \
             libegl1-mesa-dev libwebkit2gtk-4.0-dev
 
+      - name: Install CMake 3.28
+        working-directory: ${{ github.workspace }}
+        run: pip install "cmake==3.28.4"
+
       - name: Configure
-        run: cmake -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DSATURDAY_COPY_AFTER_BUILD=OFF
+        run: |
+          "$HOME/.local/bin/cmake" --version
+          "$HOME/.local/bin/cmake" -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DSATURDAY_COPY_AFTER_BUILD=OFF
 
       - name: Build
-        run: cmake --build build --parallel --target Saturday_VST3
+        run: "$HOME/.local/bin/cmake" --build build --parallel --target Saturday_VST3
 
       - name: Package
         run: ./scripts/package-release.sh linux build
@@ -156,14 +162,18 @@ jobs:
           name: Saturday-linux
           path: release-assets
 
-      - name: List release assets
-        run: ls -lh release-assets/
+      - name: Verify release assets
+        run: |
+          ls -lh release-assets/
+          test -f release-assets/Saturday-macos.zip
 
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: Saturday ${{ github.ref_name }}
+          prerelease: false
+          make_latest: true
           body: |
             Pre-built Saturday Saturation Shaper plugins.
 
