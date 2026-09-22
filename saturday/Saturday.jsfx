@@ -1,24 +1,25 @@
 desc:Saturday
 author:reaper-plugins
-version:1.4.1
+version:3.4
 about:
   # Saturday
 
-  Multi-mode saturation — Tape, Tube, and Transformer.
+  Multi-mode saturation — Cassette, Tube, and Iconic.
   Adds warmth and character with a simple, focused interface.
 
-  **Controls:** Mode, Drive, Tone, Mix, Output, Auto Gain, Oversampling
+  **Controls:** Mode, Drive, Tone, Mix, Gate, Quality (Standard / Hi-Fi / Ultra)
 
-tags: saturation distortion warmth tape tube transformer
-changelog: Initial release
+tags: saturation distortion warmth cassette tape tube iconic gate
+changelog: Tube scales gently at low drive — no more aggressive low-end push
 
-slider1:0<0,2,1{Tape,Tube,Transformer}>-Mode
+slider1:0<0,2,1{Cassette,Tube,Iconic}>-Mode
 slider2:35<0,100,0.1>-Drive (%)
 slider3:0<-100,100,1>-Tone
 slider4:100<0,100,0.1>-Mix (%)
-slider5:0<-12,12,0.1>-Output (dB)
-slider6:1<0,1,1{Off,On}>-Auto Gain
-slider7:1<0,2,1{Off,2x,4x}>-Oversampling
+slider5:0<-12,12,0.1>-Output (dB)>hide
+slider6:0<0,1,1>-Auto Gain>hide
+slider7:1<0,2,1{Standard,Hi-Fi,Ultra}>-Quality
+slider8:-28<-80,0,1>-Gate (dB)
 
 @init
 
@@ -32,7 +33,6 @@ s_drive = 0.35;
 s_tone = 0;
 s_mix = 1;
 s_output = 1;
-s_autogain = 1;
 s_os = 1;
 
 // --- Targets (from sliders) ---
@@ -41,7 +41,6 @@ t_drive = 0.35;
 t_tone = 0;
 t_mix = 1;
 t_output = 1;
-t_autogain = 1;
 t_os = 1;
 
 // --- Mode crossfade ---
@@ -61,20 +60,38 @@ dc_r_x1 = dc_r_y1 = 0;
 // --- Tilt EQ states (per channel) ---
 tilt_lp_l = tilt_lp_r = 0;
 
-// --- Tape HF rolloff (per channel) ---
+// --- Cassette: bandwidth, bump, hysteresis, wow, glue (per channel) ---
+tape_pre_l = tape_pre_r = 0;
 tape_lp_l = tape_lp_r = 0;
+tape_hf_l = tape_hf_r = 0;
+tape_bump_l = tape_bump_r = 0;
+tape_hyst_l = tape_hyst_r = 0;
+tape_env_l = tape_env_r = 0;
+tape_scoop_l = tape_scoop_r = 0;
+tape_az_l = tape_az_r = 0;
+tape_wow_phase = 0;
 
-// --- Tube mid band (per channel) ---
+// --- Iconic: split-band exciter + sizzle + bloom (per channel) ---
+icon_env_l = icon_env_r = 0;
+icon_split_l = icon_split_r = 0;
+icon_sizzle_l = icon_sizzle_r = 0;
+icon_shine_l = icon_shine_r = 0;
+icon_air_l = icon_air_r = 0;
+
+// --- Tube mid band + presence (per channel) ---
 tube_bp_l = tube_bp_r = 0;
 tube_bp_z1_l = tube_bp_z1_r = 0;
-
-// --- Transformer LF emphasis (per channel) ---
-xf_lp_l = xf_lp_r = 0;
-xf_iron_l = xf_iron_r = 0;
-xf_coup_l = xf_coup_r = 0;
+tube_pres_l = tube_pres_r = 0;
 
 // --- Oversampling history ---
 os_last_l = os_last_r = 0;
+
+// --- Noise gate (per channel) ---
+gate_pk_l = gate_pk_r = 0;
+gate_env_l = gate_env_r = 0;
+gate_pk_decay = 0;
+gate_open_coeff = 0;
+gate_close_coeff = 0;
 
 // --- Peak meters (for UI) ---
 meter_in_l = meter_in_r = 0;
@@ -84,33 +101,133 @@ meter_decay = 0;
 // --- UI state ---
 ui_drag = 0;
 ui_mouse_last = 0;
+ui_click_x = 0;
 ui_click_y = 0;
+ui_drag_val = 0;
+
+// --- Preset / mode tracking ---
+last_slider1 = -1;
+last_slider2 = -1;
 
 // --- Filter coefficients (updated in @slider) ---
 hp_coeff = 0;
 dc_coeff = 0;
 tilt_coeff = 0;
+tape_pre_coeff = 0;
 tape_lp_coeff = 0;
+tape_hf_coeff = 0;
+tape_bump_coeff = 0;
+tape_hyst_coeff = 0;
+tape_env_coeff = 0;
+tape_env_att_coeff = 0;
+tape_scoop_coeff = 0;
+tape_az_coeff = 0;
+tape_wow_inc = 0;
+icon_env_coeff = 0;
+icon_split_coeff = 0;
+icon_sizzle_coeff = 0;
+icon_shine_coeff = 0;
+icon_air_coeff = 0;
 tube_bp_coeff = 0;
+tube_pres_coeff = 0;
 tube_bp_gain = 0;
-xf_lp_coeff = 0;
-xf_iron_coeff = 0;
 smooth_coeff = 0;
+
+function sat_reset_dsp_states() (
+  hp_l_x1 = hp_l_y1 = hp_r_x1 = hp_r_y1 = 0;
+  dc_l_x1 = dc_l_y1 = dc_r_x1 = dc_r_y1 = 0;
+  tilt_lp_l = tilt_lp_r = 0;
+  tape_pre_l = tape_pre_r = 0;
+  tape_lp_l = tape_lp_r = 0;
+  tape_hf_l = tape_hf_r = 0;
+  tape_bump_l = tape_bump_r = 0;
+  tape_hyst_l = tape_hyst_r = 0;
+  tape_env_l = tape_env_r = 0;
+  tape_scoop_l = tape_scoop_r = 0;
+  tape_az_l = tape_az_r = 0;
+  tape_wow_phase = 0;
+  icon_env_l = icon_env_r = 0;
+  icon_split_l = icon_split_r = 0;
+  icon_sizzle_l = icon_sizzle_r = 0;
+  icon_shine_l = icon_shine_r = 0;
+  icon_air_l = icon_air_r = 0;
+  tube_bp_l = tube_bp_r = 0;
+  tube_bp_z1_l = tube_bp_z1_r = 0;
+  tube_pres_l = tube_pres_r = 0;
+  os_last_l = os_last_r = 0;
+  gate_pk_l = gate_pk_r = 0;
+  gate_env_l = gate_env_r = 0;
+);
 
 function sat_update_coeffs() (
   hp_coeff = exp(-2 * $pi * 30 / srate);
   dc_coeff = exp(-2 * $pi * 5 / srate);
   tilt_coeff = exp(-2 * $pi * 800 / srate);
-  tape_lp_coeff = exp(-2 * $pi * 6000 / srate);
-  tube_bp_coeff = exp(-2 * $pi * 1200 / srate);
-  tube_bp_gain = 0.08;
-  xf_lp_coeff = exp(-2 * $pi * 180 / srate);
-  xf_iron_coeff = exp(-2 * $pi * 350 / srate);
+  tape_pre_coeff = exp(-2 * $pi * 2600 / srate);
+  tape_lp_coeff = exp(-2 * $pi * 1750 / srate);
+  tape_hf_coeff = exp(-2 * $pi * 580 / srate);
+  tape_bump_coeff = exp(-2 * $pi * 85 / srate);
+  tape_hyst_coeff = exp(-2 * $pi * 0.75 / srate);
+  tape_env_coeff = exp(-1 / (0.055 * srate));
+  tape_env_att_coeff = exp(-1 / (0.004 * srate));
+  tape_scoop_coeff = exp(-2 * $pi * 920 / srate);
+  tape_az_coeff = exp(-2 * $pi * 3400 / srate);
+  tape_wow_inc = 2 * $pi * 0.32 / srate;
+  icon_env_coeff = exp(-1 / (0.014 * srate));
+  icon_split_coeff = exp(-2 * $pi * 1500 / srate);
+  icon_sizzle_coeff = exp(-2 * $pi * 5400 / srate);
+  icon_shine_coeff = exp(-2 * $pi * 4200 / srate);
+  icon_air_coeff = exp(-2 * $pi * 9000 / srate);
+  tube_bp_coeff = exp(-2 * $pi * 820 / srate);
+  tube_pres_coeff = exp(-2 * $pi * 3600 / srate);
+  tube_bp_gain = 0.38;
   smooth_coeff = exp(-1 / (0.015 * srate));
   meter_decay = exp(-1 / (0.075 * srate));
+  gate_pk_decay = exp(-1 / (0.012 * srate));
+  gate_open_coeff = exp(-1 / (0.002 * srate));
+  gate_close_coeff = exp(-1 / (0.045 * srate));
 );
 
 function sat_db_to_gain(db) ( exp(db * 0.11512925464970229); );
+
+function sat_lin_to_db(x) (
+  x > 0.0000000001 ? (log(x) / log(10) * 20) : -120;
+);
+
+function sat_gate_gain(in_dry, ch, gate_db) local(
+  level, pk, pk_db, tgt, g, coeff, close_db
+) (
+  gate_db <= -79 ? 1 : (
+    level = abs(in_dry);
+    ch == 0 ? (
+      gate_pk_l = max(level, gate_pk_l * gate_pk_decay);
+      pk = gate_pk_l;
+    ) : (
+      gate_pk_r = max(level, gate_pk_r * gate_pk_decay);
+      pk = gate_pk_r;
+    );
+    pk_db = sat_lin_to_db(pk);
+    close_db = gate_db - 4;
+    pk_db > gate_db ? (
+      tgt = min(1, (pk_db - gate_db) / 3);
+    ) : pk_db > close_db ? (
+      tgt = max(0, (pk_db - close_db) / 4);
+    ) : (
+      tgt = 0;
+    );
+    ch == 0 ? (
+      coeff = tgt > gate_env_l ? gate_open_coeff : gate_close_coeff;
+      gate_env_l += (1 - coeff) * (tgt - gate_env_l);
+      g = gate_env_l;
+    ) : (
+      coeff = tgt > gate_env_r ? gate_open_coeff : gate_close_coeff;
+      gate_env_r += (1 - coeff) * (tgt - gate_env_r);
+      g = gate_env_r;
+    );
+    g < 0.015 ? (g = 0;) : g > 0.985 ? (g = 1;);
+    g;
+  );
+);
 
 function sat_tanh(x) local(e) (
   x > 8 ? 1 : (
@@ -164,79 +281,206 @@ function sat_tilt(x, ch, tone) local(lp, hp, dark, bright) (
     lp = tilt_lp_r;
   );
   hp = x - lp;
-  dark = 1 + max(0, -tone) * 1.1;
-  bright = 1 + max(0, tone) * 1.1;
+  dark = 1 + max(0, -tone) * 5;
+  bright = 1 + max(0, tone) * 5;
   lp * dark + hp * bright;
 );
 
-function sat_drive_gain(drive) (
-  1 + drive * drive * 12 + drive * 3;
+function sat_soft_clip(x, k) (
+  x / (1 + abs(x) * k);
 );
 
-function sat_tape(x, drive, ch) local(g, y, lp, sat) (
-  drive < 0.001 ? x : (
-    g = sat_drive_gain(drive);
-    sat = sat_tanh(x * g) / max(sat_tanh(g), 0.001);
-    ch == 0 ? (
-      tape_lp_l += (1 - tape_lp_coeff) * (sat - tape_lp_l);
-      lp = tape_lp_l;
-    ) : (
-      tape_lp_r += (1 - tape_lp_coeff) * (sat - tape_lp_r);
-      lp = tape_lp_r;
-    );
-    y = sat * (1 - drive * 0.22) + lp * (drive * 0.22);
-    y;
-  );
+function sat_tube_clip(x, g) local(e) (
+  x >= 0 ? (
+    e = exp(-x * g * 1.35);
+    1 - e
+  ) : (
+    e = exp(x * g * 0.95);
+    -(1 - e) * 1.15
+  )
 );
 
-function sat_tube(x, drive, ch) local(g, pos, neg, y, bp, sat) (
-  drive < 0.001 ? x : (
-    g = sat_drive_gain(drive);
-    pos = sat_tanh(max(x, 0) * g * 1.2) / max(sat_tanh(g * 1.2), 0.001);
-    neg = sat_tanh(min(x, 0) * g * 0.9) / max(sat_tanh(g * 0.9), 0.001) * 1.08;
-    sat = pos + neg;
-    ch == 0 ? (
-      tube_bp_z1_l += (1 - tube_bp_coeff) * (sat - tube_bp_z1_l);
-      bp = tube_bp_z1_l;
-    ) : (
-      tube_bp_z1_r += (1 - tube_bp_coeff) * (sat - tube_bp_z1_r);
-      bp = tube_bp_z1_r;
-    );
-    y = sat + bp * tube_bp_gain * 4 * drive;
-    y;
+function sat_tape(x, drive, ch) local(
+  char, pre_lp, bump, hyst, wow, body, pre, env, gr, g, sat, pos, neg, lp, hf,
+  scoop, smear, hf_amt, crunch, wear, y, sq, asym, env_coeff, level
+) (
+  char = max(drive, 0.06);
+  tape_wow_phase += tape_wow_inc;
+  wow = sin(tape_wow_phase) * char * 0.014 + sin(tape_wow_phase * 4.3) * char * 0.006;
+  ch == 0 ? (
+    tape_pre_l += (1 - tape_pre_coeff) * (x - tape_pre_l);
+    pre_lp = tape_pre_l;
+    tape_bump_l += (1 - tape_bump_coeff) * (x - tape_bump_l);
+    bump = tape_bump_l;
+    hyst = tape_hyst_l;
+    level = abs(x);
+    env_coeff = level > tape_env_l ? tape_env_att_coeff : tape_env_coeff;
+    tape_env_l += (1 - env_coeff) * (level - tape_env_l);
+    env = tape_env_l;
+  ) : (
+    tape_pre_r += (1 - tape_pre_coeff) * (x - tape_pre_r);
+    pre_lp = tape_pre_r;
+    tape_bump_r += (1 - tape_bump_coeff) * (x - tape_bump_r);
+    bump = tape_bump_r;
+    hyst = tape_hyst_r;
+    level = abs(x);
+    env_coeff = level > tape_env_r ? tape_env_att_coeff : tape_env_coeff;
+    tape_env_r += (1 - env_coeff) * (level - tape_env_r);
+    env = tape_env_r;
   );
+  body = pre_lp * (0.74 + char * 0.16) + x * (0.26 - char * 0.05);
+  pre = (body + bump * (0.72 + char * 0.95)) * (1 + char * 3.6);
+  pre += hyst * (0.48 + char * 0.42 + wow);
+  gr = 1 / (1 + env * env * char * 3.4);
+  pre = pre * gr * (1 + char * 0.62);
+  sq = pre * pre;
+  g = 0.42 + char * char * 2.9 + char * 1.45;
+  pos = sat_soft_clip(max(pre, 0), g * 0.26);
+  neg = sat_soft_clip(min(pre, 0), g * 0.44) * 1.22;
+  sat = pos + neg;
+  asym = pre > 0 ? 1.12 : 0.78;
+  sat = sat * asym;
+  crunch = (pre > 0 ? sq : -sq) * char * 0.48;
+  sat = sat * (1 - char * 0.26) + crunch;
+  ch == 0 ? (
+    tape_hyst_l = tape_hyst_l * tape_hyst_coeff + sat * (1 - tape_hyst_coeff);
+    tape_az_l += (1 - tape_az_coeff) * (sat - tape_az_l);
+    smear = sat * (0.8 - char * 0.05) + tape_az_l * (0.2 + char * 0.1);
+    sat = smear;
+    tape_scoop_l += (1 - tape_scoop_coeff) * (sat - tape_scoop_l);
+    scoop = tape_scoop_l;
+    tape_hf_l += (1 - tape_hf_coeff) * (sat - tape_hf_l);
+    hf = tape_hf_l;
+    tape_lp_l += (1 - tape_lp_coeff) * (sat - tape_lp_l);
+    lp = tape_lp_l;
+  ) : (
+    tape_hyst_r = tape_hyst_r * tape_hyst_coeff + sat * (1 - tape_hyst_coeff);
+    tape_az_r += (1 - tape_az_coeff) * (sat - tape_az_r);
+    smear = sat * (0.8 - char * 0.05) + tape_az_r * (0.2 + char * 0.1);
+    sat = smear;
+    tape_scoop_r += (1 - tape_scoop_coeff) * (sat - tape_scoop_r);
+    scoop = tape_scoop_r;
+    tape_hf_r += (1 - tape_hf_coeff) * (sat - tape_hf_r);
+    hf = tape_hf_r;
+    tape_lp_r += (1 - tape_lp_coeff) * (sat - tape_lp_r);
+    lp = tape_lp_r;
+  );
+  y = sat - scoop * (0.26 + char * 0.2);
+  hf_amt = 0.86 + char * 0.1;
+  y = y * (1 - hf_amt) + hf * hf_amt;
+  y = y * (0.36 + char * 0.07) + lp * (0.78 + char * 0.16);
+  wear = (sat - hf) * char * 0.11;
+  y = y + wear * (0.42 + char * 0.38);
+  y = sat_soft_clip(y * (1 + char * 0.82), 0.72 + char * 0.62);
+  y * 0.66;
 );
 
-function sat_transformer(x, drive, ch) local(g, lf, sat, iron, y) (
-  drive < 0.001 ? x : (
-    ch == 0 ? (
-      xf_lp_l += (1 - xf_lp_coeff) * (x - xf_lp_l);
-      lf = xf_lp_l;
-    ) : (
-      xf_lp_r += (1 - xf_lp_coeff) * (x - xf_lp_r);
-      lf = xf_lp_r;
-    );
-    g = sat_drive_gain(drive);
-    sat = sat_tanh((x + lf * drive * 0.5) * g) / max(sat_tanh(g), 0.001);
-    ch == 0 ? (
-      xf_iron_l += (1 - xf_iron_coeff) * (sat - xf_iron_l);
-      iron = xf_iron_l;
-      xf_coup_l += (1 - xf_iron_coeff) * (iron - xf_coup_l);
-      y = sat * (1 - drive * 0.12) + xf_coup_l * (drive * 0.18);
-    ) : (
-      xf_iron_r += (1 - xf_iron_coeff) * (sat - xf_iron_r);
-      iron = xf_iron_r;
-      xf_coup_r += (1 - xf_iron_coeff) * (iron - xf_coup_r);
-      y = sat * (1 - drive * 0.12) + xf_coup_r * (drive * 0.18);
-    );
-    y;
+function sat_tube(x, drive, ch) local(
+  g, pos, neg, y, bp, pres, sat, sat_sat, even, char, pre_g, pre, mid,
+  clean, heat, bp_amt, pres_amt
+) (
+  char = max(drive, 0.04);
+  heat = min(1, char * char * 6 + max(0, char - 0.2) * 2.6);
+  ch == 0 ? (
+    tube_bp_z1_l += (1 - tube_bp_coeff) * (x - tube_bp_z1_l);
+    mid = tube_bp_z1_l;
+  ) : (
+    tube_bp_z1_r += (1 - tube_bp_coeff) * (x - tube_bp_z1_r);
+    mid = tube_bp_z1_r;
   );
+  clean = x + mid * (0.2 + char * 0.42);
+  pre = x + mid * (0.6 + char * 0.95) * heat;
+  pre_g = 1 + char * 5.5 * heat;
+  g = 2.2 + char * char * 5.5 + char * 2.8;
+  even = pre * abs(pre) * (0.7 + char * 0.85) * heat;
+  pos = sat_tube_clip(max(pre, 0) * pre_g, g * 1.22);
+  neg = sat_tube_clip(min(pre, 0) * pre_g, g * 0.62) * 1.32;
+  sat_sat = (pos + neg) * 0.9 + even * 0.95;
+  sat = clean * (1 - heat) + sat_sat * heat;
+  ch == 0 ? (
+    tube_bp_l += (1 - tube_bp_coeff) * (sat - tube_bp_l);
+    bp = tube_bp_l;
+    tube_pres_l += (1 - tube_pres_coeff) * (sat - tube_pres_l);
+    pres = sat - tube_pres_l;
+  ) : (
+    tube_bp_r += (1 - tube_bp_coeff) * (sat - tube_bp_r);
+    bp = tube_bp_r;
+    tube_pres_r += (1 - tube_pres_coeff) * (sat - tube_pres_r);
+    pres = sat - tube_pres_r;
+  );
+  bp_amt = tube_bp_gain * (22 + char * 28) * heat;
+  pres_amt = (0.9 + char * 1.25) * heat;
+  y = sat + bp * bp_amt + pres * pres_amt;
+  y * 1.0;
+);
+
+function sat_iconic(x, drive, ch) local(
+  char, env, env_sq, body, pres, air_in, warm, warm_sat, glow, glow_lin, glow_sat,
+  aura, aura_lin, aura_sat, y, shine, hf, bloom, air, pres_g, aura_g, air_g, trim, grit
+) (
+  char = max(drive, 0.08);
+  grit = min(1, char * char * 6 + max(0, char - 0.18) * 2.5);
+  ch == 0 ? (
+    icon_env_l += (1 - icon_env_coeff) * (abs(x) - icon_env_l);
+    env = icon_env_l;
+    icon_split_l += (1 - icon_split_coeff) * (x - icon_split_l);
+    body = icon_split_l;
+    icon_sizzle_l += (1 - icon_sizzle_coeff) * (x - icon_sizzle_l);
+    pres = icon_sizzle_l - icon_split_l;
+    air_in = x - icon_sizzle_l;
+  ) : (
+    icon_env_r += (1 - icon_env_coeff) * (abs(x) - icon_env_r);
+    env = icon_env_r;
+    icon_split_r += (1 - icon_split_coeff) * (x - icon_split_r);
+    body = icon_split_r;
+    icon_sizzle_r += (1 - icon_sizzle_coeff) * (x - icon_sizzle_r);
+    pres = icon_sizzle_r - icon_split_r;
+    air_in = x - icon_sizzle_r;
+  );
+  env_sq = env * env;
+  warm_sat = sat_soft_clip(
+    (body + body * abs(body) * (0.16 + char * 0.28)) * (1 + char * 1.8),
+    0.9 + char * 0.45
+  );
+  warm = body * (0.62 - char * 0.1) * (1 - grit) + warm_sat * grit;
+  pres_g = (1.5 + char * 3.8) * (0.72 + env * (0.28 + char * 0.38));
+  glow_lin = pres * (0.62 + env * char * 0.72);
+  glow_sat = sat_tanh(pres * pres_g);
+  glow_sat = glow_sat + pres * abs(pres) * (0.14 + char * 0.2) * pres_g * 0.12;
+  glow = glow_lin * (1 - grit) + glow_sat * grit;
+  aura_g = (1.6 + char * 4.2) * env_sq * (0.35 + char * 0.55);
+  aura_lin = air_in * env_sq * (0.28 + char * 0.42);
+  aura_sat = sat_tanh(air_in * aura_g);
+  aura_sat = aura_sat + sin(air_in * (3.5 + char * 6.5)) * env * char * 0.1;
+  aura = aura_lin * (1 - grit) + aura_sat * grit;
+  y = warm + glow * (0.78 + char * 0.72) + aura * (0.48 + char * 0.58);
+  ch == 0 ? (
+    icon_shine_l += (1 - icon_shine_coeff) * (y - icon_shine_l);
+    shine = icon_shine_l;
+  ) : (
+    icon_shine_r += (1 - icon_shine_coeff) * (y - icon_shine_r);
+    shine = icon_shine_r;
+  );
+  hf = y - shine;
+  bloom = 1 + env * char * 1.45;
+  y = shine + hf * bloom;
+  ch == 0 ? (
+    icon_air_l += (1 - icon_air_coeff) * (y - icon_air_l);
+    air = y - icon_air_l;
+  ) : (
+    icon_air_r += (1 - icon_air_coeff) * (y - icon_air_r);
+    air = icon_air_r;
+  );
+  air_g = (0.22 + char * 0.38) * (0.55 + env_sq * 0.65);
+  y = y + air * air_g;
+  trim = 0.62 / (1 + char * 0.38);
+  y * trim;
 );
 
 function sat_mode_process(x, mode, drive, ch) (
   mode < 0.5 ? sat_tape(x, drive, ch) :
   mode < 1.5 ? sat_tube(x, drive, ch) :
-  sat_transformer(x, drive, ch)
+  sat_iconic(x, drive, ch)
 );
 
 function sat_oversample(ch, in_s, drive, mode, os_rate) local(
@@ -259,33 +503,51 @@ function sat_oversample(ch, in_s, drive, mode, os_rate) local(
   acc / steps;
 );
 
-function sat_auto_gain(drive, mode) local(comp) (
-  mode < 0.5 ? (comp = 1 / (1 + drive * 0.35)) :
-  mode < 1.5 ? (comp = 1 / (1 + drive * 0.30)) :
-  (comp = 1 / (1 + drive * 0.40));
-  comp;
+function sat_mode_tilt(x, ch, tone, mode) local(lp, hp, lp_amt, hp_amt) (
+  ch == 0 ? (
+    tilt_lp_l += (1 - tilt_coeff) * (x - tilt_lp_l);
+    lp = tilt_lp_l;
+  ) : (
+    tilt_lp_r += (1 - tilt_coeff) * (x - tilt_lp_r);
+    lp = tilt_lp_r;
+  );
+  hp = x - lp;
+  mode < 0.5 ? (
+    lp_amt = 1 + max(0, -tone) * 4.8 + max(0, tone) * 0.32;
+    hp_amt = 1 + max(0, tone) * 0.32 + max(0, -tone) * 3.4;
+  ) : mode < 1.5 ? (
+    lp_amt = 1 + max(0, -tone) * 1 + max(0, tone) * 1.4;
+    hp_amt = 1 + max(0, tone) * 3.5 + max(0, -tone) * 0.6;
+  ) : (
+    lp_amt = 1 + max(0, -tone) * 0.55 + max(0, tone) * 0.75;
+    hp_amt = 1 + max(0, tone) * 4.8 + max(0, -tone) * 0.18;
+  );
+  lp * lp_amt + hp * hp_amt;
 );
 
-function sat_process_channel(in_dry, ch, drive, tone, mix, out_gain, autogain, os_rate) local(
-  in_wet, wet, m0, w0, w1, os_save, out_wet, comp, out
+function sat_process_channel(in_dry, ch, drive, tone, mix, out_gain, os_rate, gate_db) local(
+  in_cond, wet, m0, w0, w1, os_save, out_wet, out, gate_g, wet_mix, mix_comp
 ) (
-  in_wet = sat_hpf(in_dry, ch);
+  gate_g = sat_gate_gain(in_dry, ch, gate_db);
+  gate_g < 0.001 ? (
+    in_dry * out_gain;
+  ) : (
+  in_cond = sat_hpf(in_dry, ch);
   m0 = mode_xfade;
   ch == 0 ? (os_save = os_last_l;) : (os_save = os_last_r;);
-  w0 = sat_oversample(ch, in_wet, drive, mode_cur, os_rate);
+  w0 = sat_oversample(ch, in_cond, drive, mode_cur, os_rate);
   ch == 0 ? (os_last_l = os_save;) : (os_last_r = os_save;);
-  w1 = sat_oversample(ch, in_wet, drive, mode_tgt, os_rate);
+  w1 = sat_oversample(ch, in_cond, drive, mode_tgt, os_rate);
   wet = w0 * (1 - m0) + w1 * m0;
-  wet = sat_tilt(wet, ch, tone);
-  autogain > 0.5 ? (
-    comp = sat_auto_gain(drive, s_mode);
-    wet *= comp;
-  );
-  out_wet = in_dry * (1 - mix) + wet * mix;
-  out = out_wet * out_gain;
+  wet = sat_mode_tilt(wet, ch, tone, mode_tgt);
+  wet_mix = mix * gate_g;
+  out_wet = in_cond * (1 - wet_mix) + wet * wet_mix;
+  mix_comp = 1 - wet_mix * (1 - wet_mix) * 0.55;
+  out = out_wet * mix_comp * out_gain;
   out = sat_dc_block(out, ch);
   out = sat_soft_limit(out);
   out;
+  );
 );
 
 // --- UI colors (gfx) ---
@@ -298,45 +560,69 @@ COL_TEXT_DIM_R = 0.62; COL_TEXT_DIM_G = 0.58; COL_TEXT_DIM_B = 0.52;
 COL_METER_R = 0.85; COL_METER_G = 0.55; COL_METER_B = 0.22;
 COL_ACTIVE_TEXT_R = 1.0; COL_ACTIVE_TEXT_G = 0.97; COL_ACTIVE_TEXT_B = 0.92;
 
-function sat_gfx_rect(x, y, w, h, r, g, b, a) (
-  gfx_set(r, g, b, a);
+function sat_gfx_rect(in_x, in_y, in_w, in_h, in_cr, in_cg, in_cb, in_ca) local(x, y, w, h) (
+  x = in_x; y = in_y; w = in_w; h = in_h;
+  gfx_set(in_cr, in_cg, in_cb, in_ca);
   gfx_rect(x, y, w, h);
 );
 
-function sat_gfx_roundrect(x, y, w, h, rad, r, g, b, a) (
-  gfx_set(r, g, b, a);
+function sat_gfx_roundrect(in_x, in_y, in_w, in_h, in_rad, in_cr, in_cg, in_cb, in_ca) local(x, y, w, h, rad) (
+  x = in_x; y = in_y; w = in_w; h = in_h; rad = in_rad;
+  gfx_set(in_cr, in_cg, in_cb, in_ca);
   gfx_roundrect(x, y, w, h, rad);
 );
 
-function sat_gfx_text(r, g, b, str, cx, cy) (
-  gfx_set(r, g, b, 1);
-  gfx_measurestr(str, tw, th);
-  gfx_x = cx - tw * 0.5;
-  gfx_y = cy - th * 0.5;
-  gfx_drawstr(str);
+function sat_gfx_text(in_cr, in_cg, in_cb, in_str, in_cx, in_cy) local(tw, th) (
+  gfx_set(in_cr, in_cg, in_cb, 1);
+  gfx_measurestr(in_str, tw, th);
+  gfx_x = in_cx - tw * 0.5;
+  gfx_y = in_cy - th * 0.5;
+  gfx_drawstr(in_str);
 );
 
-function sat_pt_in_circle(px, py, cx, cy, r) (
-  sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy)) <= r;
+function sat_pt_in_circle(in_px, in_py, in_cx, in_cy, in_rr) local(dx, dy) (
+  dx = in_px - in_cx;
+  dy = in_py - in_cy;
+  sqrt(dx * dx + dy * dy) <= in_rr;
 );
 
-function sat_pt_in_rect(px, py, x, y, w, h) (
-  (px >= x) * (px <= x + w) * (py >= y) * (py <= y + h);
+function sat_pt_in_rect(in_px, in_py, in_x, in_y, in_w, in_h) (
+  (in_px >= in_x) * (in_px <= in_x + in_w) * (in_py >= in_y) * (in_py <= in_y + in_h);
 );
 
-function sat_gfx_arc_poly(cx, cy, r, ang1, ang2, segs) local(
-  i, t, a, px, py, lx, ly, span
+function sat_ui_assign(idx, val) (
+  idx == 1 ? (slider1 = val;);
+  idx == 2 ? (slider2 = val;);
+  idx == 3 ? (slider3 = val;);
+  idx == 4 ? (slider4 = val;);
+  idx == 5 ? (slider5 = val;);
+  idx == 6 ? (slider6 = val;);
+  idx == 7 ? (slider7 = val;);
+  idx == 8 ? (slider8 = val;);
+);
+
+function sat_ui_commit() (
+  sliderchange(-1);
+);
+
+function sat_ui_set_slider(idx, val) (
+  sat_ui_assign(idx, val);
+  sat_ui_commit();
+);
+
+function sat_gfx_arc_poly(in_cx, in_cy, in_rr, ang1, ang2, segs) local(
+  i, t, a, lx, ly, px, py, span
 ) (
   span = ang2 - ang1;
   abs(span) < 0.001 ? 0 : (
-    lx = cx + cos(ang1) * r;
-    ly = cy + sin(ang1) * r;
+    lx = in_cx + cos(ang1) * in_rr;
+    ly = in_cy + sin(ang1) * in_rr;
     i = 1;
     loop(segs,
       t = i / segs;
       a = ang1 + t * span;
-      px = cx + cos(a) * r;
-      py = cy + sin(a) * r;
+      px = in_cx + cos(a) * in_rr;
+      py = in_cy + sin(a) * in_rr;
       gfx_line(lx, ly, px, py);
       lx = px;
       ly = py;
@@ -345,141 +631,272 @@ function sat_gfx_arc_poly(cx, cy, r, ang1, ang2, segs) local(
   );
 );
 
-function sat_gfx_knob_draw(cx, cy, radius, val, vmin, vmax, label, knob_id, label_above, show_val) local(
+function sat_gfx_knob_draw(in_cx, in_cy, in_rad, in_val, in_vmin, in_vmax, in_label, in_knob_id, in_label_above, in_show_val) local(
   norm, arc_r, val_str, a0, a1, ox, oy, hub_r, segs
 ) (
-  norm = (val - vmin) / max(vmin - vmax, vmax - vmin);
+  norm = (in_val - in_vmin) / max(in_vmin - in_vmax, in_vmax - in_vmin);
   norm < 0 ? norm = 0;
   norm > 1 ? norm = 1;
 
-  arc_r = radius * 0.86;
-  hub_r = radius * 0.14;
-  segs = max(24, radius * 2);
+  arc_r = in_rad * 0.86;
+  hub_r = in_rad * 0.14;
+  segs = max(24, in_rad * 2);
   a0 = -0.75 * $pi;
   a1 = a0 + norm * 1.5 * $pi;
 
   gfx_set(COL_PANEL_R + 0.02, COL_PANEL_G + 0.02, COL_PANEL_B + 0.02, 1);
-  gfx_circle(cx, cy, radius, 1);
+  gfx_circle(in_cx, in_cy, in_rad, 1);
   gfx_set(COL_COPPER_DIM_R * 0.55, COL_COPPER_DIM_G * 0.55, COL_COPPER_DIM_B * 0.55, 1);
-  sat_gfx_arc_poly(cx, cy, arc_r, a0, a0 + 1.5 * $pi, segs);
+  sat_gfx_arc_poly(in_cx, in_cy, arc_r, a0, a0 + 1.5 * $pi, segs);
   norm > 0.001 ? (
     gfx_set(COL_COPPER_R, COL_COPPER_G, COL_COPPER_B, 1);
-    sat_gfx_arc_poly(cx, cy, arc_r, a0, a1, max(8, segs * norm));
-    sat_gfx_arc_poly(cx, cy, arc_r - 1, a0, a1, max(8, segs * norm));
+    sat_gfx_arc_poly(in_cx, in_cy, arc_r, a0, a1, max(8, segs * norm));
+    sat_gfx_arc_poly(in_cx, in_cy, arc_r - 1, a0, a1, max(8, segs * norm));
   );
   gfx_set(COL_COPPER_DIM_R, COL_COPPER_DIM_G, COL_COPPER_DIM_B, 1);
-  gfx_circle(cx, cy, radius, 0);
+  gfx_circle(in_cx, in_cy, in_rad, 0);
 
-  ox = cx + cos(a1) * arc_r;
-  oy = cy + sin(a1) * arc_r;
+  ox = in_cx + cos(a1) * arc_r;
+  oy = in_cy + sin(a1) * arc_r;
   gfx_set(COL_COPPER_DIM_R, COL_COPPER_DIM_G, COL_COPPER_DIM_B, 1);
-  gfx_circle(cx, cy, hub_r, 1);
+  gfx_circle(in_cx, in_cy, hub_r, 1);
   gfx_set(COL_COPPER_R, COL_COPPER_G, COL_COPPER_B, 1);
-  gfx_line(cx, cy, ox, oy);
+  gfx_line(in_cx, in_cy, ox, oy);
   gfx_circle(ox, oy, 2.5, 1);
 
-  show_val ? (
+  in_show_val ? (
     gfx_setfont(1, "Arial", 15);
-    knob_id == 1 ? (
-      sprintf(#val_str, "%.0f%%", val);
-    ) : knob_id == 4 ? (
-      sprintf(#val_str, "%+.1f", val);
-    ) : knob_id == 2 ? (
-      sprintf(#val_str, "%+.0f", val);
+    in_knob_id == 1 ? (
+      sprintf(#val_str, "%.0f%%", in_val);
+    ) : in_knob_id == 4 ? (
+      sprintf(#val_str, "%+.1f", in_val);
+    ) : in_knob_id == 2 ? (
+      sprintf(#val_str, "%+.0f", in_val);
     ) : (
-      sprintf(#val_str, "%.0f%%", val);
+      sprintf(#val_str, "%.0f%%", in_val);
     );
-    sat_gfx_text(COL_TEXT_R, COL_TEXT_G, COL_TEXT_B, val_str, cx, cy + 4);
+    sat_gfx_text(COL_TEXT_R, COL_TEXT_G, COL_TEXT_B, val_str, in_cx, in_cy + 4);
   );
 
   gfx_setfont(1, "Arial", 12);
-  label_above ? (
-    sat_gfx_text(COL_TEXT_R, COL_TEXT_G, COL_TEXT_B, label, cx, cy - radius - 14);
+  in_label_above ? (
+    sat_gfx_text(COL_TEXT_R, COL_TEXT_G, COL_TEXT_B, in_label, in_cx, in_cy - in_rad - 14);
   ) : (
-    sat_gfx_text(COL_TEXT_DIM_R, COL_TEXT_DIM_G, COL_TEXT_DIM_B, label, cx, cy + radius + 14);
+    sat_gfx_text(COL_TEXT_DIM_R, COL_TEXT_DIM_G, COL_TEXT_DIM_B, in_label, in_cx, in_cy + in_rad + 14);
   );
 );
 
-function sat_gfx_mode_btn_draw(x, y, w, h, idx, label) local(active, hover) (
+function sat_gfx_mode_btn_draw(in_x, in_y, in_w, in_h, idx, in_label) local(active, hover, tx, ty) (
   active = slider1 == idx;
-  hover = sat_pt_in_rect(mouse_x, mouse_y, x, y, w, h);
+  hover = sat_pt_in_rect(mouse_x, mouse_y, in_x, in_y, in_w, in_h);
+  tx = in_x + in_w * 0.5;
+  ty = in_y + in_h * 0.5;
   active ? (
-    sat_gfx_roundrect(x, y, w, h, 8, COL_COPPER_R, COL_COPPER_G, COL_COPPER_B, 1);
-    sat_gfx_roundrect(x + 1, y + 1, w - 2, h - 2, 7, COL_COPPER_R * 1.05, COL_COPPER_G * 1.05, COL_COPPER_B * 1.05, 1);
-    gfx_set(1, 1, 1, 1);
-    gfx_roundrect(x, y, w, h, 8);
+    sat_gfx_roundrect(in_x, in_y, in_w, in_h, 8, COL_COPPER_R, COL_COPPER_G, COL_COPPER_B, 1);
+    gfx_set(1, 1, 1, 0.35);
+    gfx_roundrect(in_x, in_y, in_w, in_h, 8);
     gfx_setfont(1, "Arial", 14, 'b');
-    sat_gfx_text(1, 1, 1, label, x + w * 0.5, y + h * 0.5 + 1);
+    sat_gfx_text(1, 1, 1, in_label, tx, ty);
   ) : (
-    sat_gfx_roundrect(x, y, w, h, 8, COL_PANEL_R * 0.7, COL_PANEL_G * 0.7, COL_PANEL_B * 0.7, 1);
+    sat_gfx_roundrect(in_x, in_y, in_w, in_h, 8, COL_PANEL_R * 0.7, COL_PANEL_G * 0.7, COL_PANEL_B * 0.7, 1);
     gfx_set(COL_COPPER_DIM_R * 0.6, COL_COPPER_DIM_G * 0.6, COL_COPPER_DIM_B * 0.6, 1);
-    gfx_roundrect(x, y, w, h, 8);
+    gfx_roundrect(in_x, in_y, in_w, in_h, 8);
     hover ? (
       gfx_setfont(1, "Arial", 13);
-      sat_gfx_text(COL_TEXT_R, COL_TEXT_G, COL_TEXT_B, label, x + w * 0.5, y + h * 0.5);
+      sat_gfx_text(COL_TEXT_R, COL_TEXT_G, COL_TEXT_B, in_label, tx, ty);
     ) : (
       gfx_setfont(1, "Arial", 13);
-      sat_gfx_text(COL_TEXT_DIM_R, COL_TEXT_DIM_G, COL_TEXT_DIM_B, label, x + w * 0.5, y + h * 0.5);
+      sat_gfx_text(COL_TEXT_DIM_R, COL_TEXT_DIM_G, COL_TEXT_DIM_B, in_label, tx, ty);
     );
   );
 );
 
-function sat_gfx_toggle_draw(x, y, w, h, val, label) local(on, hover) (
-  on = val > 0.5;
-  hover = sat_pt_in_rect(mouse_x, mouse_y, x, y, w, h);
-  on ? (
-    sat_gfx_roundrect(x, y, w, h, 6, COL_COPPER_R * 0.75, COL_COPPER_G * 0.75, COL_COPPER_B * 0.75, 1);
+function sat_gfx_text_right(in_cr, in_cg, in_cb, in_str, in_rx, in_cy) local(tw, th) (
+  gfx_set(in_cr, in_cg, in_cb, 1);
+  gfx_measurestr(in_str, tw, th);
+  gfx_x = in_rx - tw;
+  gfx_y = in_cy - th * 0.5;
+  gfx_drawstr(in_str);
+);
+
+function sat_gfx_gate_draw(in_x, in_y, in_w, in_h, in_val, in_vmin, in_vmax) local(
+  norm, track_x, track_w, track_y, track_h, thumb_x, val_str, active, hover, ty
+) (
+  norm = (in_val - in_vmin) / max(in_vmin - in_vmax, in_vmax - in_vmin);
+  norm < 0 ? norm = 0;
+  norm > 1 ? norm = 1;
+  active = in_val > -79;
+  hover = sat_pt_in_rect(mouse_x, mouse_y, in_x, in_y, in_w, in_h);
+  ty = in_y + in_h * 0.5;
+  track_x = in_x + 50;
+  track_w = in_w - 96;
+  track_y = ty + 1;
+  track_h = 4;
+  active ? (
+    sat_gfx_roundrect(in_x, in_y, in_w, in_h, 6, COL_COPPER_R * 0.75, COL_COPPER_G * 0.75, COL_COPPER_B * 0.75, 1);
     gfx_set(COL_COPPER_R, COL_COPPER_G, COL_COPPER_B, 1);
-    gfx_roundrect(x, y, w, h, 6);
-    gfx_setfont(1, "Arial", 11, 'b');
-    sat_gfx_text(1, 1, 1, label, x + w * 0.5, y + h * 0.5);
+    gfx_roundrect(in_x, in_y, in_w, in_h, 6);
   ) : (
-    sat_gfx_roundrect(x, y, w, h, 6, COL_PANEL_R * 0.7, COL_PANEL_G * 0.7, COL_PANEL_B * 0.7, 1);
+    sat_gfx_roundrect(in_x, in_y, in_w, in_h, 6, COL_PANEL_R * 0.7, COL_PANEL_G * 0.7, COL_PANEL_B * 0.7, 1);
     gfx_set(COL_COPPER_DIM_R * 0.5, COL_COPPER_DIM_G * 0.5, COL_COPPER_DIM_B * 0.5, 1);
-    gfx_roundrect(x, y, w, h, 6);
+    gfx_roundrect(in_x, in_y, in_w, in_h, 6);
+  );
+  active ? (
+    gfx_setfont(1, "Arial", 10, 'b');
+    sat_gfx_text(1, 1, 1, "Gate", in_x + 22, ty);
+  ) : (
+    gfx_setfont(1, "Arial", 10);
+    hover ? (
+      sat_gfx_text(COL_TEXT_R * 0.85, COL_TEXT_G * 0.85, COL_TEXT_B * 0.85, "Gate", in_x + 22, ty);
+    ) : (
+      sat_gfx_text(COL_TEXT_DIM_R, COL_TEXT_DIM_G, COL_TEXT_DIM_B, "Gate", in_x + 22, ty);
+    );
+  );
+  sat_gfx_roundrect(track_x, track_y, track_w, track_h, 2, COL_PANEL_R * 0.45, COL_PANEL_G * 0.45, COL_PANEL_B * 0.45, 1);
+  norm > 0.001 ? (
+    sat_gfx_roundrect(track_x, track_y, max(3, track_w * norm), track_h, 2, active ? COL_COPPER_R : COL_COPPER_DIM_R, active ? COL_COPPER_G : COL_COPPER_DIM_G, active ? COL_COPPER_B : COL_COPPER_DIM_B, 1);
+  );
+  thumb_x = track_x + norm * track_w;
+  gfx_set(active ? COL_COPPER_R : COL_COPPER_DIM_R, active ? COL_COPPER_G : COL_COPPER_DIM_G, active ? COL_COPPER_B : COL_COPPER_DIM_B, 1);
+  gfx_circle(thumb_x, track_y + track_h * 0.5, 4, 1);
+  in_val <= -79 ? (
+    sprintf(#val_str, "Off");
+  ) : (
+    sprintf(#val_str, "%.0f dB", in_val);
+  );
+  active ? (
+    gfx_setfont(1, "Arial", 10, 'b');
+    sat_gfx_text_right(1, 1, 1, val_str, in_x + in_w - 8, ty);
+  ) : (
+    gfx_setfont(1, "Arial", 10);
+    sat_gfx_text_right(COL_TEXT_DIM_R, COL_TEXT_DIM_G, COL_TEXT_DIM_B, val_str, in_x + in_w - 8, ty);
+  );
+);
+
+function sat_gfx_toggle_draw(in_x, in_y, in_w, in_h, in_val, in_label) local(on, hover) (
+  on = in_val > 0.5;
+  hover = sat_pt_in_rect(mouse_x, mouse_y, in_x, in_y, in_w, in_h);
+  on ? (
+    sat_gfx_roundrect(in_x, in_y, in_w, in_h, 6, COL_COPPER_R * 0.75, COL_COPPER_G * 0.75, COL_COPPER_B * 0.75, 1);
+    gfx_set(COL_COPPER_R, COL_COPPER_G, COL_COPPER_B, 1);
+    gfx_roundrect(in_x, in_y, in_w, in_h, 6);
+    gfx_setfont(1, "Arial", 11, 'b');
+    sat_gfx_text(1, 1, 1, in_label, in_x + in_w * 0.5, in_y + in_h * 0.5);
+  ) : (
+    sat_gfx_roundrect(in_x, in_y, in_w, in_h, 6, COL_PANEL_R * 0.7, COL_PANEL_G * 0.7, COL_PANEL_B * 0.7, 1);
+    gfx_set(COL_COPPER_DIM_R * 0.5, COL_COPPER_DIM_G * 0.5, COL_COPPER_DIM_B * 0.5, 1);
+    gfx_roundrect(in_x, in_y, in_w, in_h, 6);
     hover ? (
       gfx_setfont(1, "Arial", 11);
-      sat_gfx_text(COL_TEXT_R * 0.85, COL_TEXT_G * 0.85, COL_TEXT_B * 0.85, label, x + w * 0.5, y + h * 0.5);
+      sat_gfx_text(COL_TEXT_R * 0.85, COL_TEXT_G * 0.85, COL_TEXT_B * 0.85, in_label, in_x + in_w * 0.5, in_y + in_h * 0.5);
     ) : (
       gfx_setfont(1, "Arial", 11);
-      sat_gfx_text(COL_TEXT_DIM_R, COL_TEXT_DIM_G, COL_TEXT_DIM_B, label, x + w * 0.5, y + h * 0.5);
+      sat_gfx_text(COL_TEXT_DIM_R, COL_TEXT_DIM_G, COL_TEXT_DIM_B, in_label, in_x + in_w * 0.5, in_y + in_h * 0.5);
     );
   );
 );
 
-function sat_gfx_meter(x, y, w, h, peak) local(fill, ph, tick, ty) (
-  sat_gfx_rect(x, y, w, h, COL_PANEL_R, COL_PANEL_G, COL_PANEL_B, 1);
+function sat_gfx_meter(in_x, in_y, in_w, in_h, peak) local(fill, ph, tick, ty) (
+  sat_gfx_rect(in_x, in_y, in_w, in_h, COL_PANEL_R, COL_PANEL_G, COL_PANEL_B, 1);
   ty = 0;
   loop(5,
-    tick = y + h - (ty + 1) * h * 0.2;
+    tick = in_y + in_h - (ty + 1) * in_h * 0.2;
     gfx_set(COL_COPPER_DIM_R * 0.5, COL_COPPER_DIM_G * 0.5, COL_COPPER_DIM_B * 0.5, 1);
-    gfx_line(x, tick, x + w, tick);
+    gfx_line(in_x, tick, in_x + in_w, tick);
     ty += 1;
   );
   ph = min(1, peak * 2.5);
-  fill = ph * h;
-  fill > 0 ? sat_gfx_rect(x + 1, y + h - fill, w - 2, fill, COL_METER_R, COL_METER_G, COL_METER_B, 1);
+  fill = ph * in_h;
+  fill > 0 ? sat_gfx_rect(in_x + 1, in_y + in_h - fill, in_w - 2, fill, COL_METER_R, COL_METER_G, COL_METER_B, 1);
   gfx_set(COL_COPPER_DIM_R, COL_COPPER_DIM_G, COL_COPPER_DIM_B, 1);
-  gfx_rect(x, y, w, h, 0);
+  gfx_rect(in_x, in_y, in_w, in_h, 0);
+);
+
+function sat_ui_gate(slider_idx, drag_id, sx, sy, sw, sh, vmin, vmax, drag_step) local(
+  hit, fine, dx, val, norm, track_x, track_w
+) (
+  track_x = sx + 50;
+  track_w = sw - 96;
+  hit = sat_pt_in_rect(mouse_x, mouse_y, sx, sy, sw, sh);
+  fine = (mouse_cap & 8) ? 0.25 : 1;
+
+  ui_m_click * hit * ((mouse_cap & 2) == 0) * ((mouse_cap & 4) == 0) ? (
+    norm = (mouse_x - track_x) / track_w;
+    norm < 0 ? norm = 0;
+    norm > 1 ? norm = 1;
+    val = vmin + norm * (vmax - vmin);
+    sat_ui_assign(slider_idx, val);
+    ui_drag = drag_id;
+    ui_click_x = mouse_x;
+    ui_drag_val = val;
+  );
+
+  (ui_drag == drag_id) * ui_m_down ? (
+    dx = (mouse_x - ui_click_x) * drag_step * fine;
+    val = min(vmax, max(vmin, ui_drag_val + dx));
+    sat_ui_assign(slider_idx, val);
+    ui_click_x = mouse_x;
+    ui_drag_val = val;
+  );
+);
+
+function sat_ui_knob(slider_idx, drag_id, kcx, kcy, kr, vmin, vmax, drag_step) local(
+  hit, fine, dy, val
+) (
+  hit = sat_pt_in_circle(mouse_x, mouse_y, kcx, kcy, kr + 4);
+  fine = (mouse_cap & 8) ? 0.2 : 1;
+
+  ui_m_click * hit * ((mouse_cap & 2) == 0) * ((mouse_cap & 4) == 0) ? (
+    ui_drag = drag_id;
+    ui_click_y = mouse_y;
+    drag_id == 1 ? (ui_drag_val = slider2;) :
+    drag_id == 2 ? (ui_drag_val = slider3;) :
+    (ui_drag_val = slider4;);
+  );
+
+  (ui_drag == drag_id) * ui_m_down ? (
+    dy = (mouse_y - ui_click_y) * drag_step * fine;
+    val = min(vmax, max(vmin, ui_drag_val + dy));
+    sat_ui_assign(slider_idx, val);
+    ui_click_y = mouse_y;
+    ui_drag_val = val;
+  );
 );
 
 sat_update_coeffs();
 
 @slider
 
+slider8 >= 0 && slider8 <= 1 ? (slider8 = slider8 < 0.5 ? -80 : -36;);
+slider1 > 2 ? (slider1 = 2;);
+
 t_mode = slider1;
 t_drive = slider2 / 100;
 t_tone = slider3 / 100;
 t_mix = slider4 / 100;
-t_output = sat_db_to_gain(slider5);
-t_autogain = slider6;
+t_output = 1;
 t_os = slider7;
+
+// Snap audio params instantly when any slider changes.
+s_mode = t_mode;
+s_drive = t_drive;
+s_tone = t_tone;
+s_mix = t_mix;
+s_output = t_output;
+s_os = t_os;
 
 t_mode != mode_tgt ? (
   mode_cur = mode_tgt;
   mode_tgt = t_mode;
   mode_xfade = 0;
+  sat_reset_dsp_states();
 );
+
+(slider1 != last_slider1 || abs(slider2 - last_slider2) > 18 || sliderchange(1)) ? (
+  sat_reset_dsp_states();
+);
+last_slider1 = slider1;
+last_slider2 = slider2;
 
 sat_update_coeffs();
 
@@ -487,14 +904,12 @@ sat_update_coeffs();
 
 @sample
 
-// Smooth parameters
-s_mode += smooth_coeff * (t_mode - s_mode);
-s_drive += smooth_coeff * (t_drive - s_drive);
-s_tone += smooth_coeff * (t_tone - s_tone);
-s_mix += smooth_coeff * (t_mix - s_mix);
-s_output += smooth_coeff * (t_output - s_output);
-s_autogain += smooth_coeff * (t_autogain - s_autogain);
-s_os += smooth_coeff * (t_os - s_os);
+slider1 != mode_tgt ? (
+  mode_cur = mode_tgt;
+  mode_tgt = slider1;
+  mode_xfade = 0;
+  sat_reset_dsp_states();
+);
 
 mode_xfade < 1 ? (
   mode_xfade += 1 / MODE_XFADE_LEN;
@@ -508,12 +923,20 @@ dry_r = spl1;
 meter_in_l = max(abs(dry_l), meter_in_l * meter_decay);
 meter_in_r = max(abs(dry_r), meter_in_r * meter_decay);
 
+// Read sliders directly so custom UI changes are heard immediately.
+p_drive = slider2 / 100;
+p_tone = slider3 / 100;
+p_mix = slider4 / 100;
+p_output = 1;
+p_os = slider7;
+p_gate = slider8;
+
 sat_is_bad(dry_l) | sat_is_bad(dry_r) ? (
   spl0 = dry_l;
   spl1 = dry_r;
 ) : (
-  spl0 = sat_process_channel(dry_l, 0, s_drive, s_tone, s_mix, s_output, s_autogain, s_os);
-  spl1 = sat_process_channel(dry_r, 1, s_drive, s_tone, s_mix, s_output, s_autogain, s_os);
+  spl0 = sat_process_channel(dry_l, 0, p_drive, p_tone, p_mix, p_output, p_os, p_gate);
+  spl1 = sat_process_channel(dry_r, 1, p_drive, p_tone, p_mix, p_output, p_os, p_gate);
   sat_is_bad(spl0) | sat_is_bad(spl1) ? (
     spl0 = dry_l;
     spl1 = dry_r;
@@ -525,115 +948,46 @@ meter_out_r = max(abs(spl1), meter_out_r * meter_decay);
 
 @gfx 480 360
 
-// --- Layout constants (shared by input + draw) ---
-ui_btn_w = 130;
+// --- Layout (fixed coordinates for 480x360 UI) ---
+ui_btn_w = 144;
 ui_btn_h = 28;
 ui_btn_y = 72;
-ui_btn_x0 = (gfx_w - ui_btn_w * 3 - 20) * 0.5;
+ui_btn_gap = 10;
+ui_btn_x0 = (480 - ui_btn_w * 3 - ui_btn_gap * 2) * 0.5;
 ui_knob_y = 188;
 ui_tone_x = 95;
-ui_drive_x = gfx_w * 0.5;
-ui_mix_x = gfx_w - 95;
+ui_drive_x = 240;
+ui_mix_x = 385;
 ui_tone_r = 32;
 ui_drive_r = 52;
 ui_mix_r = 32;
-ui_out_x = gfx_w * 0.5;
-ui_out_y = 302;
-ui_out_r = 22;
-ui_footer_y = 284;
+ui_footer_y = 290;
 ui_footer_h = 28;
+ui_gate_x = 20;
+ui_gate_w = 320;
+ui_qual_x = 352;
+ui_qual_w = 108;
 
-// --- Mouse input (centralized) ---
-ui_m_down = (mouse_cap & 1) ? 1 : 0;
-ui_m_click = ui_m_down * (ui_mouse_last == 0);
-ui_m_release = (ui_m_down == 0) * ui_mouse_last;
-
-ui_m_release ? (ui_drag = 0;);
-
-(ui_drag >= 1) * ui_m_down ? (
-  ui_dy = ui_click_y - mouse_y;
-  ui_drag == 1 ? (
-    slider2 = min(100, max(0, slider2 + ui_dy * 0.35));
-    sliderchange(2);
-  ) : ui_drag == 2 ? (
-    slider3 = min(100, max(-100, slider3 + ui_dy * 0.5));
-    sliderchange(3);
-  ) : ui_drag == 3 ? (
-    slider4 = min(100, max(0, slider4 + ui_dy * 0.5));
-    sliderchange(4);
-  ) : ui_drag == 4 ? (
-    slider5 = min(12, max(-12, slider5 + ui_dy * 0.08));
-    sliderchange(5);
-  );
-  ui_click_y = mouse_y;
-);
-
-ui_m_click * (mouse_cap & 2) ? (
-  sat_pt_in_circle(mouse_x, mouse_y, ui_drive_x, ui_knob_y, ui_drive_r + 4) ? (slider2 = 0; sliderchange(2););
-  sat_pt_in_circle(mouse_x, mouse_y, ui_tone_x, ui_knob_y, ui_tone_r + 4) ? (slider3 = 0; sliderchange(3););
-  sat_pt_in_circle(mouse_x, mouse_y, ui_mix_x, ui_knob_y, ui_mix_r + 4) ? (slider4 = 100; sliderchange(4););
-  sat_pt_in_circle(mouse_x, mouse_y, ui_out_x, ui_out_y, ui_out_r + 4) ? (slider5 = 0; sliderchange(5););
-);
-
-ui_m_click * ((mouse_cap & 2) == 0) * sat_pt_in_rect(mouse_x, mouse_y, ui_btn_x0, ui_btn_y, ui_btn_w, ui_btn_h) ? (
-  slider1 = 0; sliderchange(1);
-);
-
-ui_m_click * ((mouse_cap & 2) == 0) * sat_pt_in_rect(mouse_x, mouse_y, ui_btn_x0 + ui_btn_w + 10, ui_btn_y, ui_btn_w, ui_btn_h) ? (
-  slider1 = 1; sliderchange(1);
-);
-
-ui_m_click * ((mouse_cap & 2) == 0) * sat_pt_in_rect(mouse_x, mouse_y, ui_btn_x0 + (ui_btn_w + 10) * 2, ui_btn_y, ui_btn_w, ui_btn_h) ? (
-  slider1 = 2; sliderchange(1);
-);
-
-ui_m_click * ((mouse_cap & 2) == 0) * sat_pt_in_rect(mouse_x, mouse_y, 20, ui_footer_y, 110, ui_footer_h) ? (
-  slider6 = slider6 < 0.5; sliderchange(6);
-);
-
-ui_m_click * ((mouse_cap & 2) == 0) * sat_pt_in_rect(mouse_x, mouse_y, gfx_w - 130, ui_footer_y, 110, ui_footer_h) ? (
-  slider7 = slider7 >= 2 ? 0 : slider7 + 1;
-  sliderchange(7);
-);
-
-ui_m_click * ((mouse_cap & 2) == 0) * sat_pt_in_circle(mouse_x, mouse_y, ui_drive_x, ui_knob_y, ui_drive_r + 4) ? (
-  ui_drag = 1; ui_click_y = mouse_y;
-);
-
-ui_m_click * ((mouse_cap & 2) == 0) * sat_pt_in_circle(mouse_x, mouse_y, ui_tone_x, ui_knob_y, ui_tone_r + 4) ? (
-  ui_drag = 2; ui_click_y = mouse_y;
-);
-
-ui_m_click * ((mouse_cap & 2) == 0) * sat_pt_in_circle(mouse_x, mouse_y, ui_mix_x, ui_knob_y, ui_mix_r + 4) ? (
-  ui_drag = 3; ui_click_y = mouse_y;
-);
-
-ui_m_click * ((mouse_cap & 2) == 0) * sat_pt_in_circle(mouse_x, mouse_y, ui_out_x, ui_out_y, ui_out_r + 4) ? (
-  ui_drag = 4; ui_click_y = mouse_y;
-);
-
-ui_mouse_last = ui_m_down;
-
-// --- Draw ---
+// --- Draw first (before mouse hit-tests touch any shared state) ---
 gfx_clear = COL_BG_R * 255 + COL_BG_G * 255 * 256 + COL_BG_B * 255 * 65536;
 
-sat_gfx_rect(0, 0, gfx_w, gfx_h, COL_BG_R, COL_BG_G, COL_BG_B, 1);
-sat_gfx_roundrect(8, 8, gfx_w - 16, 52, 8, COL_PANEL_R, COL_PANEL_G, COL_PANEL_B, 1);
+sat_gfx_rect(0, 0, 480, 360, COL_BG_R, COL_BG_G, COL_BG_B, 1);
+sat_gfx_roundrect(8, 8, 464, 52, 8, COL_PANEL_R, COL_PANEL_G, COL_PANEL_B, 1);
 gfx_set(COL_COPPER_DIM_R, COL_COPPER_DIM_G, COL_COPPER_DIM_B, 1);
-gfx_roundrect(8, 8, gfx_w - 16, 52, 8);
+gfx_roundrect(8, 8, 464, 52, 8);
 
 gfx_setfont(1, "Arial", 26);
-sat_gfx_text(COL_COPPER_R, COL_COPPER_G, COL_COPPER_B, "Saturday", gfx_w * 0.5, 26);
+sat_gfx_text(COL_COPPER_R, COL_COPPER_G, COL_COPPER_B, "Saturday", 240, 26);
 gfx_setfont(1, "Arial", 12);
-sat_gfx_text(COL_TEXT_DIM_R, COL_TEXT_DIM_G, COL_TEXT_DIM_B, "Multi-mode Saturation", gfx_w * 0.5, 48);
+sat_gfx_text(COL_TEXT_DIM_R, COL_TEXT_DIM_G, COL_TEXT_DIM_B, "Multi-mode Saturation  v3.4", 240, 48);
 
 // Mode buttons
-sat_gfx_mode_btn_draw(ui_btn_x0, ui_btn_y, ui_btn_w, ui_btn_h, 0, "Tape");
-sat_gfx_mode_btn_draw(ui_btn_x0 + ui_btn_w + 10, ui_btn_y, ui_btn_w, ui_btn_h, 1, "Tube");
-sat_gfx_mode_btn_draw(ui_btn_x0 + (ui_btn_w + 10) * 2, ui_btn_y, ui_btn_w, ui_btn_h, 2, "Transformer");
+sat_gfx_mode_btn_draw(ui_btn_x0, ui_btn_y, ui_btn_w, ui_btn_h, 0, "Cassette");
+sat_gfx_mode_btn_draw(ui_btn_x0 + ui_btn_w + ui_btn_gap, ui_btn_y, ui_btn_w, ui_btn_h, 1, "Tube");
+sat_gfx_mode_btn_draw(ui_btn_x0 + (ui_btn_w + ui_btn_gap) * 2, ui_btn_y, ui_btn_w, ui_btn_h, 2, "Iconic");
 
 // Main control panel
-sat_gfx_roundrect(12, 108, gfx_w - 24, 168, 10, COL_PANEL_R * 0.85, COL_PANEL_G * 0.85, COL_PANEL_B * 0.85, 1);
+sat_gfx_roundrect(12, 108, 456, 168, 10, COL_PANEL_R * 0.85, COL_PANEL_G * 0.85, COL_PANEL_B * 0.85, 1);
 
 // Knobs (aligned row)
 sat_gfx_knob_draw(ui_tone_x, ui_knob_y, ui_tone_r, slider3, -100, 100, "Tone", 2, 0, 1);
@@ -643,16 +997,55 @@ sat_gfx_knob_draw(ui_mix_x, ui_knob_y, ui_mix_r, slider4, 0, 100, "Mix", 3, 0, 1
 // Meters
 sat_gfx_meter(28, 120, 10, 145, meter_in_l);
 sat_gfx_meter(42, 120, 10, 145, meter_in_r);
-sat_gfx_meter(gfx_w - 52, 120, 10, 145, meter_out_l);
-sat_gfx_meter(gfx_w - 38, 120, 10, 145, meter_out_r);
+sat_gfx_meter(428, 120, 10, 145, meter_out_l);
+sat_gfx_meter(442, 120, 10, 145, meter_out_r);
 
 gfx_setfont(1, "Arial", 10);
 sat_gfx_text(COL_TEXT_DIM_R, COL_TEXT_DIM_G, COL_TEXT_DIM_B, "IN", 35, 112);
-sat_gfx_text(COL_TEXT_DIM_R, COL_TEXT_DIM_G, COL_TEXT_DIM_B, "OUT", gfx_w - 35, 112);
+sat_gfx_text(COL_TEXT_DIM_R, COL_TEXT_DIM_G, COL_TEXT_DIM_B, "OUT", 445, 112);
 
 // Footer row
-sat_gfx_roundrect(12, 278, gfx_w - 24, 66, 10, COL_PANEL_R * 0.85, COL_PANEL_G * 0.85, COL_PANEL_B * 0.85, 1);
-sat_gfx_toggle_draw(20, ui_footer_y, 110, ui_footer_h, slider6, slider6 > 0.5 ? "Auto Gain ON" : "Auto Gain OFF");
-sat_gfx_knob_draw(ui_out_x, ui_out_y, ui_out_r, slider5, -12, 12, "Output", 4, 0, 1);
-os_label = slider7 < 0.5 ? "OS Off" : (slider7 < 1.5 ? "OS 2x" : "OS 4x");
-sat_gfx_toggle_draw(gfx_w - 130, ui_footer_y, 110, ui_footer_h, slider7, os_label);
+sat_gfx_roundrect(12, 276, 456, 48, 10, COL_PANEL_R * 0.85, COL_PANEL_G * 0.85, COL_PANEL_B * 0.85, 1);
+sat_gfx_gate_draw(ui_gate_x, ui_footer_y, ui_gate_w, ui_footer_h, slider8, -80, 0);
+qual_label = slider7 < 0.5 ? "Standard" : (slider7 < 1.5 ? "Hi-Fi" : "Ultra");
+sat_gfx_toggle_draw(ui_qual_x, ui_footer_y, ui_qual_w, ui_footer_h, slider7, qual_label);
+
+// --- Mouse input (after draw) ---
+ui_m_down = (mouse_cap & 1) ? 1 : 0;
+ui_m_click = ui_m_down * (ui_mouse_last == 0);
+ui_m_release = (ui_m_down == 0) * ui_mouse_last;
+
+ui_m_release ? (
+  ui_drag > 0 ? sat_ui_commit();
+  ui_drag = 0;
+);
+
+sat_ui_knob(2, 1, ui_drive_x, ui_knob_y, ui_drive_r, 0, 100, 0.8);
+sat_ui_knob(3, 2, ui_tone_x, ui_knob_y, ui_tone_r, -100, 100, 1.2);
+sat_ui_knob(4, 3, ui_mix_x, ui_knob_y, ui_mix_r, 0, 100, 1.0);
+sat_ui_gate(8, 5, ui_gate_x, ui_footer_y, ui_gate_w, ui_footer_h, -80, 0, 0.35);
+
+ui_m_click * (mouse_cap & 4) ? (
+  sat_pt_in_circle(mouse_x, mouse_y, ui_drive_x, ui_knob_y, ui_drive_r + 4) ? sat_ui_set_slider(2, 35);
+  sat_pt_in_circle(mouse_x, mouse_y, ui_tone_x, ui_knob_y, ui_tone_r + 4) ? sat_ui_set_slider(3, 0);
+  sat_pt_in_circle(mouse_x, mouse_y, ui_mix_x, ui_knob_y, ui_mix_r + 4) ? sat_ui_set_slider(4, 100);
+  sat_pt_in_rect(mouse_x, mouse_y, ui_gate_x, ui_footer_y, ui_gate_w, ui_footer_h) ? sat_ui_set_slider(8, -28);
+);
+
+ui_m_click * ((mouse_cap & 2) == 0) * sat_pt_in_rect(mouse_x, mouse_y, ui_btn_x0, ui_btn_y, ui_btn_w, ui_btn_h) ? (
+  sat_ui_set_slider(1, 0);
+);
+
+ui_m_click * ((mouse_cap & 2) == 0) * sat_pt_in_rect(mouse_x, mouse_y, ui_btn_x0 + ui_btn_w + ui_btn_gap, ui_btn_y, ui_btn_w, ui_btn_h) ? (
+  sat_ui_set_slider(1, 1);
+);
+
+ui_m_click * ((mouse_cap & 2) == 0) * sat_pt_in_rect(mouse_x, mouse_y, ui_btn_x0 + (ui_btn_w + ui_btn_gap) * 2, ui_btn_y, ui_btn_w, ui_btn_h) ? (
+  sat_ui_set_slider(1, 2);
+);
+
+ui_m_click * ((mouse_cap & 2) == 0) * sat_pt_in_rect(mouse_x, mouse_y, ui_qual_x, ui_footer_y, ui_qual_w, ui_footer_h) ? (
+  sat_ui_set_slider(7, slider7 >= 2 ? 0 : slider7 + 1);
+);
+
+ui_mouse_last = ui_m_down;
