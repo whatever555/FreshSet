@@ -48,26 +48,28 @@ jobs:
   build-windows:
     name: Windows (x64)
     runs-on: windows-2022
+    continue-on-error: true
     defaults:
       run:
         working-directory: saturday/plugin
     steps:
       - uses: actions/checkout@v4
 
-      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Configure
+        shell: pwsh
+        run: >
+          cmake -B build
+          -G "Visual Studio 17 2022"
+          -A x64
+          -DSATURDAY_COPY_AFTER_BUILD=OFF
 
-      - name: Configure and build
-        shell: cmd
-        run: |
-          choco install ninja -y
-          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSATURDAY_COPY_AFTER_BUILD=OFF
-          cmake --build build --config Release --parallel --target Saturday_VST3
+      - name: Build
+        shell: pwsh
+        run: cmake --build build --config Release --parallel --target Saturday_VST3
 
       - name: Package
-        shell: bash
-        run: |
-          chmod +x scripts/package-release.sh
-          ./scripts/package-release.sh windows build
+        shell: pwsh
+        run: bash scripts/package-release.sh windows build
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -78,7 +80,8 @@ jobs:
 
   build-linux:
     name: Linux (x64)
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
+    continue-on-error: true
     defaults:
       run:
         working-directory: saturday/plugin
@@ -88,7 +91,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
+          sudo apt-get install -y \
             build-essential ninja-build pkg-config git \
             libasound2-dev libjack-jackd2-dev ladspa-sdk \
             libcurl4-openssl-dev libfreetype6-dev libfontconfig1-dev \
@@ -96,17 +99,16 @@ jobs:
             libx11-dev libxcomposite-dev libxcursor-dev libxext-dev \
             libxinerama-dev libxrandr-dev libxrender-dev \
             libgl1-mesa-dev libglu1-mesa-dev mesa-common-dev \
-            libwebkit2gtk-4.1-dev
+            libegl1-mesa-dev libwebkit2gtk-4.0-dev
 
-      - name: Configure and build
-        run: |
-          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSATURDAY_COPY_AFTER_BUILD=OFF
-          cmake --build build --parallel --target Saturday_VST3
+      - name: Configure
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSATURDAY_COPY_AFTER_BUILD=OFF
+
+      - name: Build
+        run: cmake --build build --parallel --target Saturday_VST3
 
       - name: Package
-        run: |
-          chmod +x scripts/package-release.sh
-          ./scripts/package-release.sh linux build
+        run: ./scripts/package-release.sh linux build
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -118,26 +120,25 @@ jobs:
   release:
     name: Publish GitHub Release
     needs: [build-macos, build-windows, build-linux]
-    if: startsWith(github.ref, 'refs/tags/') && needs.build-macos.result == 'success'
+    if: always() && startsWith(github.ref, 'refs/tags/') && needs.build-macos.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
           name: Saturday-macos
           path: release-assets
-        continue-on-error: false
 
       - uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: Saturday-windows
           path: release-assets
-        continue-on-error: true
 
       - uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: Saturday-linux
           path: release-assets
-        continue-on-error: true
 
       - name: List release assets
         run: ls -lh release-assets/
