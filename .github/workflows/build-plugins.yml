@@ -108,7 +108,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential pkg-config git \
+            build-essential cmake pkg-config git \
             libasound2-dev libjack-jackd2-dev ladspa-sdk \
             libcurl4-openssl-dev libfreetype6-dev libfontconfig1-dev \
             libgtk-3-dev libxi-dev \
@@ -117,17 +117,13 @@ jobs:
             libgl1-mesa-dev libglu1-mesa-dev mesa-common-dev \
             libegl1-mesa-dev libwebkit2gtk-4.0-dev
 
-      - name: Install CMake 3.28
-        working-directory: ${{ github.workspace }}
-        run: pip install "cmake==3.28.4"
-
       - name: Configure
         run: |
-          ~/.local/bin/cmake --version
-          ~/.local/bin/cmake -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DSATURDAY_COPY_AFTER_BUILD=OFF
+          cmake --version
+          cmake -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DSATURDAY_COPY_AFTER_BUILD=OFF
 
       - name: Build
-        run: ~/.local/bin/cmake --build build --parallel --target Saturday_VST3
+        run: cmake --build build --parallel --target Saturday_VST3
 
       - name: Package
         run: ./scripts/package-release.sh linux build
