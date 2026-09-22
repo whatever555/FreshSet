@@ -69,7 +69,23 @@ jobs:
 
       - name: Package
         shell: pwsh
-        run: bash scripts/package-release.sh windows build
+        run: |
+          $stage = "dist/stage-windows"
+          $zip = "dist/Saturday-windows.zip"
+          if (Test-Path $stage) { Remove-Item -Recurse -Force $stage }
+          if (Test-Path $zip) { Remove-Item -Force $zip }
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item -Recurse "build/Saturday_artefacts/Release/VST3/Saturday.vst3" $stage/
+          @"
+          Saturday — Windows install
+
+          Copy Saturday.vst3 to your VST3 folder, for example:
+
+            %LOCALAPPDATA%\Programs\Common\VST3\
+
+          Then rescan plug-ins in your DAW.
+          "@ | Set-Content "$stage/INSTALL.txt"
+          Compress-Archive -Path "$stage/*" -DestinationPath $zip -Force
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

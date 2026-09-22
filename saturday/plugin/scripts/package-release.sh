@@ -83,8 +83,11 @@ rm -f "$ZIP"
   cd "$STAGE"
   if command -v zip >/dev/null 2>&1; then
     zip -r "$ZIP" .
+  elif [ -x "/usr/bin/zip.exe" ]; then
+    /usr/bin/zip.exe -r "$ZIP" .
   else
-    powershell -Command "Compress-Archive -Path * -DestinationPath '$ZIP' -Force"
+    win_zip="$(cygpath -w "$ZIP" 2>/dev/null || echo "$ZIP")"
+    powershell -NoProfile -Command "Compress-Archive -Path '*' -DestinationPath '$win_zip' -Force"
   fi
 )
 
