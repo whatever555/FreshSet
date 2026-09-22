@@ -14,7 +14,17 @@ Saturday is available in two forms:
 
 Both use the same DSP engine. Pick JSFX if you live in Reaper and want presets in the FX window; pick VST3 or AU if you want the full UI or need to run Saturday in Logic, Ableton, etc.
 
-![Saturday UI — Tube mode](docs/images/saturday-ui-tube.png)
+### VST3 / AU (native plugin)
+
+Screenshot from the macOS VST3/AU build — the full boutique UI:
+
+![Saturday VST3/AU UI](docs/images/saturday-ui-vst.jpg)
+
+### Reaper JSFX
+
+Screenshot from Reaper’s JSFX version — simpler UI, same DSP and controls:
+
+![Saturday Reaper JSFX UI](docs/images/saturday-ui-jsfx.jpg)
 
 ## What it does
 
@@ -160,8 +170,6 @@ Only needed if you want to hack on the plugin or no release exists yet for your 
 
 Click **Cassette**, **Tube**, or **Iconic** at the top. Mode changes are crossfaded so you can switch during playback without clicks.
 
-![Saturday UI — Iconic mode](docs/images/saturday-ui-iconic.png)
-
 ### 3. Set the main controls
 
 | Control | What it does |
@@ -288,4 +296,5 @@ Some presets use Mix below 100% (e.g. **Acoustic Air** 60%, **Parallel Sat** 45%
 | `Saturday-alt.rpl` | Alternate preset library name for some Reaper builds |
 | `install.sh` | Installs JSFX into Reaper’s Effects folder |
 | `plugin/` | Native VST3 / AU / Standalone project (JUCE) — see [plugin/README.md](plugin/README.md) |
-| `docs/images/` | README screenshots |
+| `docs/images/saturday-ui-vst.jpg` | README screenshot — VST3/AU UI |
+| `docs/images/saturday-ui-jsfx.jpg` | README screenshot — Reaper JSFX UI |

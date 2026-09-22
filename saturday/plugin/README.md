@@ -4,6 +4,10 @@ Native plugin with the full boutique UI. DSP matches **`../Saturday.jsfx`**.
 
 **Developer:** Whatever555 · **Version:** 1.0.0
 
+![Saturday VST3/AU UI](../docs/images/saturday-ui-vst.jpg)
+
+*Screenshot: native VST3/AU UI. The [Reaper JSFX](../README.md) uses a simpler interface with the same controls.*
+
 ## Download (recommended)
 
 No Xcode or compiler needed — grab a pre-built zip for your OS:
