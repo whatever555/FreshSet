@@ -8,11 +8,42 @@ inline double clampd(double v, double lo, double hi)
 {
     return std::max(lo, std::min(hi, v));
 }
+
+inline bool isBad(double v)
+{
+    return !std::isfinite(v);
+}
+
+inline double sanitizeAudio(double v)
+{
+    if (isBad(v))
+        return 0.0;
+    return clampd(v, -100.0, 100.0);
+}
+
+inline void sanitizeState(double& v)
+{
+    if (isBad(v))
+        v = 0.0;
+}
 } // namespace
 
 void SaturdayChannelState::reset()
 {
     *this = {};
+}
+
+void SaturdayChannelState::resetProcessing()
+{
+    hpX1 = hpY1 = 0;
+    dcX1 = dcY1 = 0;
+    tiltLp = 0;
+    tapePre = tapeLp = tapeHf = tapeBump = 0;
+    tapeHyst = tapeEnv = tapeScoop = tapeAz = 0;
+    iconEnv = iconSplit = iconSizzle = iconShine = iconAir = 0;
+    tubeBp = tubeBpZ1 = tubePres = 0;
+    osLast = 0;
+    gatePk = gateEnv = 0;
 }
 
 void SaturdayEngine::prepare(double sr)
@@ -29,6 +60,14 @@ void SaturdayEngine::reset()
     tapeWowPhase = 0;
     modeCur = modeTgt;
     modeXfade = 1.0;
+    lastDrivePct = -999.f;
+}
+
+void SaturdayEngine::resetProcessingStates()
+{
+    ch[0].resetProcessing();
+    ch[1].resetProcessing();
+    tapeWowPhase = 0;
 }
 
 void SaturdayEngine::setMode(int mode)
@@ -98,13 +137,14 @@ double SaturdayEngine::softClip(double x, double k)
 
 double SaturdayEngine::tubeClip(double x, double g)
 {
+    constexpr double kMaxExpArg = 20.0;
     if (x >= 0.0)
     {
-        const double e = std::exp(-x * g * 1.35);
-        return 1.0 - e;
+        const double arg = std::min(x * g * 1.35, kMaxExpArg);
+        return 1.0 - std::exp(-arg);
     }
-    const double e = std::exp(x * g * 0.95);
-    return -(1.0 - e) * 1.15;
+    const double arg = std::max(x * g * 0.95, -kMaxExpArg);
+    return -(1.0 - std::exp(arg)) * 1.15;
 }
 
 double SaturdayEngine::linToDb(double x)
@@ -118,7 +158,9 @@ double SaturdayEngine::hpf(double x, int channel)
     const double y = x - s.hpX1 + hpCoeff * s.hpY1;
     s.hpX1 = x;
     s.hpY1 = y;
-    return y;
+    sanitizeState(s.hpX1);
+    sanitizeState(s.hpY1);
+    return sanitizeAudio(y);
 }
 
 double SaturdayEngine::dcBlock(double x, int channel)
@@ -127,7 +169,9 @@ double SaturdayEngine::dcBlock(double x, int channel)
     const double y = x - s.dcX1 + dcCoeff * s.dcY1;
     s.dcX1 = x;
     s.dcY1 = y;
-    return y;
+    sanitizeState(s.dcX1);
+    sanitizeState(s.dcY1);
+    return sanitizeAudio(y);
 }
 
 double SaturdayEngine::tape(double x, double drive, int channel)
@@ -172,7 +216,7 @@ double SaturdayEngine::tape(double x, double drive, int channel)
     y = y * (0.36 + character * 0.07) + s.tapeLp * (0.78 + character * 0.16);
     y += (sat - s.tapeHf) * character * 0.11 * (0.42 + character * 0.38);
     y = softClip(y * (1.0 + character * 0.82), 0.72 + character * 0.62);
-    return y * 0.66;
+    return sanitizeAudio(y * 0.66);
 }
 
 double SaturdayEngine::tube(double x, double drive, int channel)
@@ -187,7 +231,7 @@ double SaturdayEngine::tube(double x, double drive, int channel)
     const double pre = x + mid * (0.6 + character * 0.95) * heat;
     const double preG = 1.0 + character * 5.5 * heat;
     const double g = 2.2 + character * character * 5.5 + character * 2.8;
-    const double even = pre * std::abs(pre) * (0.7 + character * 0.85) * heat;
+    const double even = clampd(pre * std::abs(pre) * (0.7 + character * 0.85) * heat, -50.0, 50.0);
     const double pos = tubeClip(std::max(pre, 0.0) * preG, g * 1.22);
     const double neg = tubeClip(std::min(pre, 0.0) * preG, g * 0.62) * 1.32;
     const double satSat = (pos + neg) * 0.9 + even * 0.95;
@@ -199,7 +243,7 @@ double SaturdayEngine::tube(double x, double drive, int channel)
     const double pres = sat - s.tubePres;
     const double bpAmt = tubeBpGain * (22.0 + character * 28.0) * heat;
     const double presAmt = (0.9 + character * 1.25) * heat;
-    return sat + bp * bpAmt + pres * presAmt;
+    return sanitizeAudio(sat + bp * bpAmt + pres * presAmt);
 }
 
 double SaturdayEngine::iconic(double x, double drive, int channel)
@@ -236,7 +280,7 @@ double SaturdayEngine::iconic(double x, double drive, int channel)
     s.iconAir += (1.0 - iconAirCoeff) * (y - s.iconAir);
     const double air = y - s.iconAir;
     y += air * (0.22 + character * 0.38) * (0.55 + envSq * 0.65);
-    return y * (0.62 / (1.0 + character * 0.38));
+    return sanitizeAudio(y * (0.62 / (1.0 + character * 0.38)));
 }
 
 double SaturdayEngine::modeProcess(double x, int mode, double drive, int channel)
@@ -302,6 +346,8 @@ double SaturdayEngine::gateGain(double inDry, int channel, double gateDb)
 
     const double coeff = tgt > s.gateEnv ? gateOpenCoeff : gateCloseCoeff;
     s.gateEnv += (1.0 - coeff) * (tgt - s.gateEnv);
+    sanitizeState(s.gatePk);
+    sanitizeState(s.gateEnv);
     double g = s.gateEnv;
     if (g < 0.015) g = 0;
     else if (g > 0.985) g = 1;
@@ -316,24 +362,45 @@ double SaturdayEngine::processChannel(double inDry, int channel, double drive, d
 
     const double inCond = hpf(inDry, channel);
     auto& s = channel == 0 ? ch[0] : ch[1];
-    const double osSave = s.osLast;
-    const double w0 = oversample(channel, inCond, drive, modeCur, osRate);
-    s.osLast = osSave;
-    const double w1 = oversample(channel, inCond, drive, modeTgt, osRate);
-    double wet = w0 * (1.0 - modeXfade) + w1 * modeXfade;
+
+    double wet = 0;
+    if (modeCur == modeTgt && modeXfade >= 1.0)
+    {
+        wet = oversample(channel, inCond, drive, modeTgt, osRate);
+    }
+    else
+    {
+        const SaturdayChannelState snap = s;
+        const double w0 = oversample(channel, inCond, drive, modeCur, osRate);
+        s = snap;
+        const double w1 = oversample(channel, inCond, drive, modeTgt, osRate);
+        wet = w0 * (1.0 - modeXfade) + w1 * modeXfade;
+    }
+
+    if (isBad(wet))
+    {
+        s.resetProcessing();
+        return inDry;
+    }
+
     wet = modeTilt(wet, channel, tone, modeTgt);
     const double wetMix = mix * gateG;
     const double outWet = inCond * (1.0 - wetMix) + wet * wetMix;
     const double mixComp = 1.0 - wetMix * (1.0 - wetMix) * 0.55;
     double out = outWet * mixComp;
     out = dcBlock(out, channel);
-    return softLimit(out);
+    out = softLimit(out);
+    return isBad(out) ? inDry : sanitizeAudio(out);
 }
 
 void SaturdayEngine::process(float* left, float* right, int numSamples,
                              float drivePct, float tonePct, float mixPct,
                              int quality, float gateDb)
 {
+    if (std::abs(drivePct - lastDrivePct) > 18.0f)
+        resetProcessingStates();
+    lastDrivePct = drivePct;
+
     const double drive = drivePct / 100.0;
     const double tone = tonePct / 100.0;
     const double mix = mixPct / 100.0;
@@ -352,8 +419,20 @@ void SaturdayEngine::process(float* left, float* right, int numSamples,
         ch[0].meterIn = std::max(std::abs(dryL), ch[0].meterIn * meterDecay);
         ch[1].meterIn = std::max(std::abs(dryR), ch[1].meterIn * meterDecay);
 
-        left[i] = static_cast<float>(processChannel(dryL, 0, drive, tone, mix, osRate, gateDb));
-        right[i] = static_cast<float>(processChannel(dryR, 1, drive, tone, mix, osRate, gateDb));
+        auto outL = processChannel(dryL, 0, drive, tone, mix, osRate, gateDb);
+        auto outR = processChannel(dryR, 1, drive, tone, mix, osRate, gateDb);
+        if (isBad(outL))
+        {
+            ch[0].resetProcessing();
+            outL = dryL;
+        }
+        if (isBad(outR))
+        {
+            ch[1].resetProcessing();
+            outR = dryR;
+        }
+        left[i] = static_cast<float>(outL);
+        right[i] = static_cast<float>(outR);
 
         ch[0].meterOut = std::max(static_cast<double>(std::abs(left[i])), ch[0].meterOut * meterDecay);
         ch[1].meterOut = std::max(static_cast<double>(std::abs(right[i])), ch[1].meterOut * meterDecay);

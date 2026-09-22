@@ -17,6 +17,7 @@ struct SaturdayChannelState
     double meterIn = 0, meterOut = 0;
 
     void reset();
+    void resetProcessing();
 };
 
 class SaturdayEngine
@@ -26,6 +27,7 @@ public:
 
     void prepare(double sampleRate);
     void reset();
+    void resetProcessingStates();
     void setMode(int mode);
     void process(float* left, float* right, int numSamples,
                    float drivePct, float tonePct, float mixPct,
@@ -41,6 +43,7 @@ private:
     double sampleRate = 44100.0;
     int modeCur = 0, modeTgt = 0;
     double modeXfade = 1.0;
+    float lastDrivePct = -999.f;
 
     double hpCoeff = 0, dcCoeff = 0, tiltCoeff = 0;
     double tapePreCoeff = 0, tapeLpCoeff = 0, tapeHfCoeff = 0, tapeBumpCoeff = 0;

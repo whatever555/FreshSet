@@ -133,6 +133,14 @@ tube_pres_coeff = 0;
 tube_bp_gain = 0;
 smooth_coeff = 0;
 
+// Mode-crossfade snapshot scratch
+snap_hp_x1 = snap_hp_y1 = snap_dc_x1 = snap_dc_y1 = snap_tilt_lp = 0;
+snap_tape_pre = snap_tape_lp = snap_tape_hf = snap_tape_bump = 0;
+snap_tape_hyst = snap_tape_env = snap_tape_scoop = snap_tape_az = 0;
+snap_icon_env = snap_icon_split = snap_icon_sizzle = snap_icon_shine = snap_icon_air = 0;
+snap_tube_bp = snap_tube_bp_z1 = snap_tube_pres = snap_os_last = 0;
+snap_gate_pk = snap_gate_env = 0;
+
 function sat_reset_dsp_states() (
   hp_l_x1 = hp_l_y1 = hp_r_x1 = hp_r_y1 = 0;
   dc_l_x1 = dc_l_y1 = dc_r_x1 = dc_r_y1 = 0;
@@ -157,6 +165,88 @@ function sat_reset_dsp_states() (
   os_last_l = os_last_r = 0;
   gate_pk_l = gate_pk_r = 0;
   gate_env_l = gate_env_r = 0;
+);
+
+function sat_reset_ch_l() (
+  hp_l_x1 = hp_l_y1 = dc_l_x1 = dc_l_y1 = tilt_lp_l = 0;
+  tape_pre_l = tape_lp_l = tape_hf_l = tape_bump_l = 0;
+  tape_hyst_l = tape_env_l = tape_scoop_l = tape_az_l = 0;
+  icon_env_l = icon_split_l = icon_sizzle_l = icon_shine_l = icon_air_l = 0;
+  tube_bp_l = tube_bp_z1_l = tube_pres_l = 0;
+  os_last_l = gate_pk_l = gate_env_l = 0;
+);
+
+function sat_reset_ch_r() (
+  hp_r_x1 = hp_r_y1 = dc_r_x1 = dc_r_y1 = tilt_lp_r = 0;
+  tape_pre_r = tape_lp_r = tape_hf_r = tape_bump_r = 0;
+  tape_hyst_r = tape_env_r = tape_scoop_r = tape_az_r = 0;
+  icon_env_r = icon_split_r = icon_sizzle_r = icon_shine_r = icon_air_r = 0;
+  tube_bp_r = tube_bp_z1_r = tube_pres_r = 0;
+  os_last_r = gate_pk_r = gate_env_r = 0;
+);
+
+function sat_snap_save_l() (
+  snap_hp_x1 = hp_l_x1; snap_hp_y1 = hp_l_y1;
+  snap_dc_x1 = dc_l_x1; snap_dc_y1 = dc_l_y1;
+  snap_tilt_lp = tilt_lp_l;
+  snap_tape_pre = tape_pre_l; snap_tape_lp = tape_lp_l;
+  snap_tape_hf = tape_hf_l; snap_tape_bump = tape_bump_l;
+  snap_tape_hyst = tape_hyst_l; snap_tape_env = tape_env_l;
+  snap_tape_scoop = tape_scoop_l; snap_tape_az = tape_az_l;
+  snap_icon_env = icon_env_l; snap_icon_split = icon_split_l;
+  snap_icon_sizzle = icon_sizzle_l; snap_icon_shine = icon_shine_l;
+  snap_icon_air = icon_air_l;
+  snap_tube_bp = tube_bp_l; snap_tube_bp_z1 = tube_bp_z1_l;
+  snap_tube_pres = tube_pres_l; snap_os_last = os_last_l;
+  snap_gate_pk = gate_pk_l; snap_gate_env = gate_env_l;
+);
+
+function sat_snap_restore_l() (
+  hp_l_x1 = snap_hp_x1; hp_l_y1 = snap_hp_y1;
+  dc_l_x1 = snap_dc_x1; dc_l_y1 = snap_dc_y1;
+  tilt_lp_l = snap_tilt_lp;
+  tape_pre_l = snap_tape_pre; tape_lp_l = snap_tape_lp;
+  tape_hf_l = snap_tape_hf; tape_bump_l = snap_tape_bump;
+  tape_hyst_l = snap_tape_hyst; tape_env_l = snap_tape_env;
+  tape_scoop_l = snap_tape_scoop; tape_az_l = snap_tape_az;
+  icon_env_l = snap_icon_env; icon_split_l = snap_icon_split;
+  icon_sizzle_l = snap_icon_sizzle; icon_shine_l = snap_icon_shine;
+  icon_air_l = snap_icon_air;
+  tube_bp_l = snap_tube_bp; tube_bp_z1_l = snap_tube_bp_z1;
+  tube_pres_l = snap_tube_pres; os_last_l = snap_os_last;
+  gate_pk_l = snap_gate_pk; gate_env_l = snap_gate_env;
+);
+
+function sat_snap_save_r() (
+  snap_hp_x1 = hp_r_x1; snap_hp_y1 = hp_r_y1;
+  snap_dc_x1 = dc_r_x1; snap_dc_y1 = dc_r_y1;
+  snap_tilt_lp = tilt_lp_r;
+  snap_tape_pre = tape_pre_r; snap_tape_lp = tape_lp_r;
+  snap_tape_hf = tape_hf_r; snap_tape_bump = tape_bump_r;
+  snap_tape_hyst = tape_hyst_r; snap_tape_env = tape_env_r;
+  snap_tape_scoop = tape_scoop_r; snap_tape_az = tape_az_r;
+  snap_icon_env = icon_env_r; snap_icon_split = icon_split_r;
+  snap_icon_sizzle = icon_sizzle_r; snap_icon_shine = icon_shine_r;
+  snap_icon_air = icon_air_r;
+  snap_tube_bp = tube_bp_r; snap_tube_bp_z1 = tube_bp_z1_r;
+  snap_tube_pres = tube_pres_r; snap_os_last = os_last_r;
+  snap_gate_pk = gate_pk_r; snap_gate_env = gate_env_r;
+);
+
+function sat_snap_restore_r() (
+  hp_r_x1 = snap_hp_x1; hp_r_y1 = snap_hp_y1;
+  dc_r_x1 = snap_dc_x1; dc_r_y1 = snap_dc_y1;
+  tilt_lp_r = snap_tilt_lp;
+  tape_pre_r = snap_tape_pre; tape_lp_r = snap_tape_lp;
+  tape_hf_r = snap_tape_hf; tape_bump_r = snap_tape_bump;
+  tape_hyst_r = snap_tape_hyst; tape_env_r = snap_tape_env;
+  tape_scoop_r = snap_tape_scoop; tape_az_r = snap_tape_az;
+  icon_env_r = snap_icon_env; icon_split_r = snap_icon_split;
+  icon_sizzle_r = snap_icon_sizzle; icon_shine_r = snap_icon_shine;
+  icon_air_r = snap_icon_air;
+  tube_bp_r = snap_tube_bp; tube_bp_z1_r = snap_tube_bp_z1;
+  tube_pres_r = snap_tube_pres; os_last_r = snap_os_last;
+  gate_pk_r = snap_gate_pk; gate_env_r = snap_gate_env;
 );
 
 function sat_update_coeffs() (
@@ -290,12 +380,14 @@ function sat_soft_clip(x, k) (
   x / (1 + abs(x) * k);
 );
 
-function sat_tube_clip(x, g) local(e) (
+function sat_tube_clip(x, g) local(e, arg) (
   x >= 0 ? (
-    e = exp(-x * g * 1.35);
+    arg = min(x * g * 1.35, 20);
+    e = exp(-arg);
     1 - e
   ) : (
-    e = exp(x * g * 0.95);
+    arg = max(x * g * 0.95, -20);
+    e = exp(arg);
     -(1 - e) * 1.15
   )
 );
@@ -392,7 +484,7 @@ function sat_tube(x, drive, ch) local(
   pre = x + mid * (0.6 + char * 0.95) * heat;
   pre_g = 1 + char * 5.5 * heat;
   g = 2.2 + char * char * 5.5 + char * 2.8;
-  even = pre * abs(pre) * (0.7 + char * 0.85) * heat;
+  even = min(max(pre * abs(pre) * (0.7 + char * 0.85) * heat, -50), 50);
   pos = sat_tube_clip(max(pre, 0) * pre_g, g * 1.22);
   neg = sat_tube_clip(min(pre, 0) * pre_g, g * 0.62) * 1.32;
   sat_sat = (pos + neg) * 0.9 + even * 0.95;
@@ -534,11 +626,19 @@ function sat_process_channel(in_dry, ch, drive, tone, mix, out_gain, os_rate, ga
   ) : (
   in_cond = sat_hpf(in_dry, ch);
   m0 = mode_xfade;
-  ch == 0 ? (os_save = os_last_l;) : (os_save = os_last_r;);
-  w0 = sat_oversample(ch, in_cond, drive, mode_cur, os_rate);
-  ch == 0 ? (os_last_l = os_save;) : (os_last_r = os_save;);
-  w1 = sat_oversample(ch, in_cond, drive, mode_tgt, os_rate);
-  wet = w0 * (1 - m0) + w1 * m0;
+  mode_cur == mode_tgt && m0 >= 1 ? (
+    wet = sat_oversample(ch, in_cond, drive, mode_tgt, os_rate);
+  ) : (
+    ch == 0 ? sat_snap_save_l() : sat_snap_save_r();
+    w0 = sat_oversample(ch, in_cond, drive, mode_cur, os_rate);
+    ch == 0 ? sat_snap_restore_l() : sat_snap_restore_r();
+    w1 = sat_oversample(ch, in_cond, drive, mode_tgt, os_rate);
+    wet = w0 * (1 - m0) + w1 * m0;
+  );
+  sat_is_bad(wet) ? (
+    ch == 0 ? sat_reset_ch_l() : sat_reset_ch_r();
+    in_dry * out_gain;
+  ) : (
   wet = sat_mode_tilt(wet, ch, tone, mode_tgt);
   wet_mix = mix * gate_g;
   out_wet = in_cond * (1 - wet_mix) + wet * wet_mix;
@@ -547,6 +647,7 @@ function sat_process_channel(in_dry, ch, drive, tone, mix, out_gain, os_rate, ga
   out = sat_dc_block(out, ch);
   out = sat_soft_limit(out);
   out;
+  );
   );
 );
 
@@ -938,6 +1039,7 @@ sat_is_bad(dry_l) | sat_is_bad(dry_r) ? (
   spl0 = sat_process_channel(dry_l, 0, p_drive, p_tone, p_mix, p_output, p_os, p_gate);
   spl1 = sat_process_channel(dry_r, 1, p_drive, p_tone, p_mix, p_output, p_os, p_gate);
   sat_is_bad(spl0) | sat_is_bad(spl1) ? (
+    sat_reset_dsp_states();
     spl0 = dry_l;
     spl1 = dry_r;
   );
