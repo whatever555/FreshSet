@@ -127,7 +127,8 @@ jobs:
           "$HOME/.local/bin/cmake" -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DSATURDAY_COPY_AFTER_BUILD=OFF
 
       - name: Build
-        run: "$HOME/.local/bin/cmake" --build build --parallel --target Saturday_VST3
+        run: |
+          "$HOME/.local/bin/cmake" --build build --parallel --target Saturday_VST3
 
       - name: Package
         run: ./scripts/package-release.sh linux build
