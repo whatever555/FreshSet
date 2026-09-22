@@ -1,9 +1,18 @@
 # Saturday
 
-Multi-mode saturation for [REAPER](https://www.reaper.fm/) — Cassette, Tube, and Iconic characters in one focused plugin with a custom copper-on-charcoal UI.
+Multi-mode saturation — Cassette, Tube, and Iconic characters in one focused plugin.
 
-**Author:** Whatever555 · **Version:** 3.5  
+**Author:** Whatever555 · **JSFX version:** 3.5 · **Native plugin:** 1.0.0  
 **Modes:** Cassette · Tube · Iconic
+
+Saturday is available in two forms:
+
+| Format | Best for | UI |
+|--------|----------|-----|
+| **JSFX** | Reaper | Simple, lightweight custom UI |
+| **VST3 / AU / Standalone** | Reaper and other DAWs | Full boutique copper-on-charcoal UI |
+
+Both use the same DSP engine. Pick JSFX if you live in Reaper and want presets in the FX window; pick VST3 or AU if you want the full UI or need to run Saturday in Logic, Ableton, etc.
 
 ![Saturday UI — Tube mode](docs/images/saturday-ui-tube.png)
 
@@ -17,7 +26,7 @@ Saturday adds warmth, weight, and character without a cluttered interface. Pick 
 
 ## Install
 
-### Quick install (macOS)
+### Reaper JSFX (quick install, macOS)
 
 From this folder:
 
@@ -41,7 +50,7 @@ On other platforms, set `REAPER_EFFECTS_DIR` before running if your Effects path
 REAPER_EFFECTS_DIR="$HOME/.config/REAPER/Effects/reaper-plugins" ./install.sh
 ```
 
-### Manual install
+### Reaper JSFX (manual install)
 
 Copy **`Saturday.jsfx`** and **`Saturday.rpl`** into the same Reaper Effects directory:
 
@@ -53,26 +62,89 @@ Copy **`Saturday.jsfx`** and **`Saturday.rpl`** into the same Reaper Effects dir
 
 Also copy `Saturday.rpl` as `Saturday.jsfx.rpl` if factory presets do not appear in the preset dropdown (the install script does this automatically).
 
-### After installing
+### After installing JSFX
 
 1. **Restart Reaper**, or go to **Preferences → Plug-ins → VST → Re-scan** (JSFX are picked up on rescan).
 2. Find the plugin at **FX → JS → reaper-plugins → Saturday**.
 3. If presets are empty, remove and re-add the FX, or run `./install.sh` again.
 
+### Native plugin — VST3 / AU / Standalone (macOS)
+
+The native build lives in **`plugin/`**. It targets macOS (AU + VST3 + Standalone). Windows/Linux builds are possible with JUCE but are not set up in this repo yet.
+
+**Build and install:**
+
+```bash
+cd plugin
+cmake -B build -G Xcode
+xcodebuild -project build/Saturday.xcodeproj -scheme Saturday_AU -configuration Release -jobs 8
+xcodebuild -project build/Saturday.xcodeproj -scheme Saturday_VST3 -configuration Release -jobs 8
+```
+
+The first build downloads JUCE (~1–2 min). With `COPY_PLUGIN_AFTER_BUILD` enabled in CMake, successful builds install automatically to:
+
+| Format | Install path |
+|--------|----------------|
+| **AU** | `~/Library/Audio/Plug-Ins/Components/Saturday.component` |
+| **VST3** | `~/Library/Audio/Plug-Ins/VST3/Saturday.vst3` |
+| **Standalone** | `plugin/build/Saturday_artefacts/Release/Standalone/Saturday.app` |
+
+**Requirements:** macOS, Xcode command-line tools, CMake 3.22+ (`brew install cmake`).
+
+See **[plugin/README.md](plugin/README.md)** for full build notes and control reference.
+
+**Load in Reaper (VST3 or AU):**
+
+1. **FX → Add → VST3: Whatever555 → Saturday** (or **AU: Whatever555 → Saturday**).
+2. Rescan if needed: **Preferences → Plug-ins → VST** (and AU on macOS).
+
+**Load in other DAWs:**
+
+- **Logic / GarageBand:** AU → Whatever555 → Saturday
+- **Ableton / others:** VST3 → Whatever555 → Saturday
+
+Rescan or restart the DAW after the first install.
+
+**JSFX vs native in Reaper**
+
+| | JSFX | VST3 / AU |
+|---|------|-----------|
+| UI | Simple | Full boutique UI |
+| Factory presets (29) | Yes — `Saturday.rpl` in FX dropdown | Not yet — save DAW/plugin presets manually |
+| CPU | Very light | Slightly higher (JUCE wrapper) |
+| Install | `./install.sh` | Build from `plugin/` |
+
 ### Troubleshooting
+
+**JSFX**
 
 - **Plugin not listed** — Confirm `Saturday.jsfx` is directly in `reaper-plugins/`, not in a nested subfolder. Delete any old `reaper-plugins/saturday/` folder from a previous install.
 - **Each preset shows as its own plugin** — Do not put individual `.preset` files in the Effects folder. Factory presets live in the single `Saturday.rpl` bank.
 - **Stale UI after an update** — Remove the FX from the track and insert it again, or restart Reaper.
 
+**VST3 / AU**
+
+- **Plugin not listed after build** — Confirm the `.component` / `.vst3` exists under `~/Library/Audio/Plug-Ins/`, then rescan in the DAW.
+- **UI looks old after a rebuild** — Remove the FX instance and insert it again (DAWs cache plugin UIs).
+- **CMake fails with Unix Makefiles** — Use the Xcode generator: `cmake -B build -G Xcode`.
+
 ## Usage
 
 ### 1. Add Saturday to a track
+
+**Reaper — JSFX**
 
 1. Select a track or bus.
 2. Click **FX** (or press `F`).
 3. Choose **Add → JS → reaper-plugins → Saturday**.
 4. Open the plugin window to use the custom UI (double-click the FX name in the chain if the window is closed).
+
+**Reaper or other DAW — VST3 / AU**
+
+1. Select a track or bus.
+2. Open the FX / plug-in menu.
+3. Choose **Saturday** under **Whatever555** (VST3 or AU).
+4. Open the plugin window — the native UI opens automatically.
 
 ### 2. Choose a mode
 
@@ -97,11 +169,17 @@ Click **Cassette**, **Tube**, or **Iconic** at the top. Mode changes are crossfa
 | **Gate** | Threshold (−80 dB = off). Saturation only applies when input is above the threshold. Default: −28 dB. |
 | **Quality** | Click to cycle **Standard → Hi-Fi → Ultra**. Higher settings reduce aliasing but use more CPU. |
 
-### 5. Load a factory preset
+### 5. Presets
+
+**JSFX — factory presets**
 
 Use the **preset dropdown** at the top of the Reaper FX window (not inside the custom UI). **29 factory presets** are included in `Saturday.rpl`.
 
 If the list is empty after install, re-run `./install.sh`, rescan JSFX, or remove and re-add the plugin.
+
+**VST3 / AU**
+
+Factory presets from `Saturday.rpl` are not bundled in the native plugin yet. Save your own settings via the DAW’s preset system (Reaper: **+** in the FX window; Logic: plug-in settings menu; etc.).
 
 ### UI tips
 
@@ -193,10 +271,11 @@ Some presets use Mix below 100% (e.g. **Acoustic Air** 60%, **Parallel Sat** 45%
 
 ## Files in this folder
 
-| File | Purpose |
+| Path | Purpose |
 |------|---------|
-| `Saturday.jsfx` | Plugin source and custom UI |
-| `Saturday.rpl` | Factory preset bank (29 presets) |
+| `Saturday.jsfx` | Reaper JSFX source and UI |
+| `Saturday.rpl` | Factory preset bank (29 presets, JSFX) |
 | `Saturday-alt.rpl` | Alternate preset library name for some Reaper builds |
-| `install.sh` | Copies files into Reaper’s Effects folder |
+| `install.sh` | Installs JSFX into Reaper’s Effects folder |
+| `plugin/` | Native VST3 / AU / Standalone project (JUCE) — see [plugin/README.md](plugin/README.md) |
 | `docs/images/` | README screenshots |
