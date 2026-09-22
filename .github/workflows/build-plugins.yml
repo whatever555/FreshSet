@@ -123,12 +123,11 @@ jobs:
 
       - name: Configure
         run: |
-          "$HOME/.local/bin/cmake" --version
-          "$HOME/.local/bin/cmake" -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DSATURDAY_COPY_AFTER_BUILD=OFF
+          ~/.local/bin/cmake --version
+          ~/.local/bin/cmake -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DSATURDAY_COPY_AFTER_BUILD=OFF
 
       - name: Build
-        run: |
-          "$HOME/.local/bin/cmake" --build build --parallel --target Saturday_VST3
+        run: ~/.local/bin/cmake --build build --parallel --target Saturday_VST3
 
       - name: Package
         run: ./scripts/package-release.sh linux build
@@ -149,32 +148,31 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: Saturday-macos
-          path: release-assets
+          path: artifacts
 
       - uses: actions/download-artifact@v4
         continue-on-error: true
         with:
           name: Saturday-windows
-          path: release-assets
+          path: artifacts
 
       - uses: actions/download-artifact@v4
         continue-on-error: true
         with:
           name: Saturday-linux
-          path: release-assets
+          path: artifacts
 
-      - name: Verify release assets
+      - name: Collect zips for release
         run: |
+          mkdir -p release-assets
+          find artifacts -name 'Saturday-*.zip' -exec cp {} release-assets/ \;
           ls -lh release-assets/
-          test -f release-assets/Saturday-macos.zip
 
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: Saturday ${{ github.ref_name }}
-          prerelease: false
-          make_latest: true
           body: |
             Pre-built Saturday Saturation Shaper plugins.
 
