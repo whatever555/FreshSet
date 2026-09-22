@@ -30,7 +30,7 @@ jobs:
             label: Windows (x64)
             platform: windows
             build_targets: Saturday_VST3
-          - os: ubuntu-22.04
+          - os: ubuntu-24.04
             label: Linux (x64)
             platform: linux
             build_targets: Saturday_VST3
@@ -41,6 +41,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: matrix.platform == 'windows'
+
+      - name: Install Ninja (Windows)
+        if: matrix.platform == 'windows'
+        run: choco install ninja -y
 
       - name: Install Linux dependencies
         if: matrix.platform == 'linux'
@@ -54,7 +61,7 @@ jobs:
             libx11-dev libxcomposite-dev libxcursor-dev libxext-dev \
             libxinerama-dev libxrandr-dev libxrender-dev \
             libgl1-mesa-dev libglu1-mesa-dev \
-            libwebkit2gtk-4.0-dev
+            libwebkit2gtk-4.1-dev
 
       - name: Configure (macOS)
         if: matrix.platform == 'macos'
@@ -65,10 +72,9 @@ jobs:
 
       - name: Configure (Windows)
         if: matrix.platform == 'windows'
-        shell: pwsh
+        shell: cmd
         run: |
-          cmake -B build -G "Visual Studio 17 2022" -A x64 `
-            -DSATURDAY_COPY_AFTER_BUILD=OFF
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSATURDAY_COPY_AFTER_BUILD=OFF
 
       - name: Configure (Linux)
         if: matrix.platform == 'linux'
