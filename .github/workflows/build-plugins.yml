@@ -101,10 +101,8 @@ jobs:
             libgl1-mesa-dev libglu1-mesa-dev mesa-common-dev \
             libegl1-mesa-dev libwebkit2gtk-4.0-dev
 
-      - name: Setup CMake
-        uses: cmake-actions/setup-cmake@v1
-        with:
-          cmake-version: "3.28.x"
+      - name: Install CMake 3.28
+        run: pip install "cmake==3.28.6"
 
       - name: Configure
         run: cmake -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DSATURDAY_COPY_AFTER_BUILD=OFF
