@@ -15,115 +15,149 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    name: ${{ matrix.label }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: macos-14
-            label: macOS (Universal)
-            platform: macos
-            build_targets: Saturday_VST3 Saturday_AU
-          - os: windows-2022
-            label: Windows (x64)
-            platform: windows
-            build_targets: Saturday_VST3
-          - os: ubuntu-24.04
-            label: Linux (x64)
-            platform: linux
-            build_targets: Saturday_VST3
-
+  build-macos:
+    name: macOS (Universal)
+    runs-on: macos-14
     defaults:
       run:
         working-directory: saturday/plugin
-
     steps:
       - uses: actions/checkout@v4
 
-      - uses: ilammy/msvc-dev-cmd@v1
-        if: matrix.platform == 'windows'
-
-      - name: Install Ninja (Windows)
-        if: matrix.platform == 'windows'
-        run: choco install ninja -y
-
-      - name: Install Linux dependencies
-        if: matrix.platform == 'linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential ninja-build pkg-config git \
-            libasound2-dev libjack-jackd2-dev ladspa-sdk \
-            libcurl4-openssl-dev libfreetype6-dev \
-            libgtk-3-dev libxi-dev \
-            libx11-dev libxcomposite-dev libxcursor-dev libxext-dev \
-            libxinerama-dev libxrandr-dev libxrender-dev \
-            libgl1-mesa-dev libglu1-mesa-dev \
-            libwebkit2gtk-4.1-dev
-
-      - name: Configure (macOS)
-        if: matrix.platform == 'macos'
+      - name: Configure
         run: |
           cmake -B build -G Xcode \
             -DSATURDAY_COPY_AFTER_BUILD=OFF \
             -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
 
-      - name: Configure (Windows)
-        if: matrix.platform == 'windows'
+      - name: Build
+        run: cmake --build build --config Release --parallel --target Saturday_VST3 Saturday_AU
+
+      - name: Package
+        run: |
+          chmod +x scripts/package-release.sh
+          ./scripts/package-release.sh macos build
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Saturday-macos
+          path: saturday/plugin/dist/Saturday-macos.zip
+          if-no-files-found: error
+
+  build-windows:
+    name: Windows (x64)
+    runs-on: windows-2022
+    defaults:
+      run:
+        working-directory: saturday/plugin
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure and build
         shell: cmd
         run: |
+          choco install ninja -y
           cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSATURDAY_COPY_AFTER_BUILD=OFF
-
-      - name: Configure (Linux)
-        if: matrix.platform == 'linux'
-        run: |
-          cmake -B build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DSATURDAY_COPY_AFTER_BUILD=OFF
-
-      - name: Build
-        shell: bash
-        run: cmake --build build --config Release --parallel --target ${{ matrix.build_targets }}
+          cmake --build build --config Release --parallel --target Saturday_VST3
 
       - name: Package
         shell: bash
         run: |
           chmod +x scripts/package-release.sh
-          ./scripts/package-release.sh "${{ matrix.platform }}" build
+          ./scripts/package-release.sh windows build
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Saturday-${{ matrix.platform }}
-          path: saturday/plugin/dist/Saturday-${{ matrix.platform }}.zip
+          name: Saturday-windows
+          path: saturday/plugin/dist/Saturday-windows.zip
+          if-no-files-found: error
+
+  build-linux:
+    name: Linux (x64)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: saturday/plugin
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential ninja-build pkg-config git \
+            libasound2-dev libjack-jackd2-dev ladspa-sdk \
+            libcurl4-openssl-dev libfreetype6-dev libfontconfig1-dev \
+            libgtk-3-dev libxi-dev \
+            libx11-dev libxcomposite-dev libxcursor-dev libxext-dev \
+            libxinerama-dev libxrandr-dev libxrender-dev \
+            libgl1-mesa-dev libglu1-mesa-dev mesa-common-dev \
+            libwebkit2gtk-4.1-dev
+
+      - name: Configure and build
+        run: |
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSATURDAY_COPY_AFTER_BUILD=OFF
+          cmake --build build --parallel --target Saturday_VST3
+
+      - name: Package
+        run: |
+          chmod +x scripts/package-release.sh
+          ./scripts/package-release.sh linux build
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Saturday-linux
+          path: saturday/plugin/dist/Saturday-linux.zip
           if-no-files-found: error
 
   release:
     name: Publish GitHub Release
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/')
+    needs: [build-macos, build-windows, build-linux]
+    if: startsWith(github.ref, 'refs/tags/') && needs.build-macos.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
-          path: artifacts
-          merge-multiple: true
+          name: Saturday-macos
+          path: release-assets
+        continue-on-error: false
 
-      - name: Collect release zips
-        run: |
-          mkdir -p release-assets
-          find artifacts -name 'Saturday-*.zip' -exec cp {} release-assets/ \;
-          ls -lh release-assets/
+      - uses: actions/download-artifact@v4
+        with:
+          name: Saturday-windows
+          path: release-assets
+        continue-on-error: true
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: Saturday-linux
+          path: release-assets
+        continue-on-error: true
+
+      - name: List release assets
+        run: ls -lh release-assets/
 
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: Saturday ${{ github.ref_name }}
+          body: |
+            Pre-built Saturday Saturation Shaper plugins.
+
+            | Download | Platform | Contents |
+            |----------|----------|----------|
+            | `Saturday-macos.zip` | macOS (Apple Silicon + Intel) | VST3 + AU |
+            | `Saturday-windows.zip` | Windows 64-bit | VST3 |
+            | `Saturday-linux.zip` | Linux 64-bit | VST3 |
+
+            Unzip and copy the plugin to your DAW's plug-in folder. See [saturday/plugin/README.md](https://github.com/whatever555/FreshSet/blob/main/saturday/plugin/README.md) for install paths.
           files: release-assets/Saturday-*.zip
-          generate_release_notes: true
-          fail_on_unmatched_files: true
+          fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
