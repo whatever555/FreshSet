@@ -224,6 +224,8 @@ void SaturdayGateControl::resized()
 
 SaturdayAudioProcessorEditor::~SaturdayAudioProcessorEditor()
 {
+    processor.presetBroadcaster.removeChangeListener(this);
+    presetBox.setLookAndFeel(nullptr);
     qualityBox.setLookAndFeel(nullptr);
 }
 
@@ -264,6 +266,19 @@ SaturdayAudioProcessorEditor::SaturdayAudioProcessorEditor(SaturdayAudioProcesso
     gateSlider.setRange(-80.0, 0.0, 1.0);
     gateAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "gate", gateSlider);
 
+    for (int i = 0; i < kNumFactoryPresets; ++i)
+        presetBox.addItem(kFactoryPresets[i].name, i + 1);
+    presetBox.onChange = [this]
+    {
+        const int index = presetBox.getSelectedItemIndex();
+        if (index >= 0)
+            processor.setCurrentProgram(index);
+    };
+    addAndMakeVisible(presetBox);
+    stylePresetBox();
+    syncPresetBox();
+    processor.presetBroadcaster.addChangeListener(this);
+
     qualityBox.addItemList({ "Standard", "Hi-Fi", "Ultra" }, 1);
     addAndMakeVisible(qualityBox);
     qualityAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, "quality", qualityBox);
@@ -281,6 +296,25 @@ void SaturdayAudioProcessorEditor::styleQualityBox()
     qualityBox.setColour(juce::ComboBox::outlineColourId, SaturdayColours::copperDim());
     qualityBox.setColour(juce::ComboBox::textColourId, SaturdayColours::copper());
     qualityBox.setColour(juce::ComboBox::arrowColourId, SaturdayColours::copper());
+}
+
+void SaturdayAudioProcessorEditor::stylePresetBox()
+{
+    presetBox.setLookAndFeel(&comboLnF);
+    presetBox.setColour(juce::ComboBox::backgroundColourId, SaturdayColours::panel());
+    presetBox.setColour(juce::ComboBox::outlineColourId, SaturdayColours::copperDim());
+    presetBox.setColour(juce::ComboBox::textColourId, SaturdayColours::copper());
+    presetBox.setColour(juce::ComboBox::arrowColourId, SaturdayColours::copper());
+}
+
+void SaturdayAudioProcessorEditor::syncPresetBox()
+{
+    presetBox.setSelectedItemIndex(processor.getCurrentPresetIndex(), juce::dontSendNotification);
+}
+
+void SaturdayAudioProcessorEditor::changeListenerCallback(juce::ChangeBroadcaster*)
+{
+    syncPresetBox();
 }
 
 void SaturdayAudioProcessorEditor::paint(juce::Graphics& g)
@@ -304,6 +338,7 @@ void SaturdayAudioProcessorEditor::paint(juce::Graphics& g)
 
     g.setColour(SaturdayColours::copper());
     g.setFont(labelFont);
+    g.drawText("PRESET", 332, 14, 80, 16, juce::Justification::centredLeft);
     g.drawText("QUALITY", 332, kFooterY + 8, 80, 16, juce::Justification::centredLeft);
 
     const int btnW = (getWidth() - 40 - 12) / 3;
@@ -357,6 +392,7 @@ void SaturdayAudioProcessorEditor::resized()
     mixKnob.setBounds(284, kMainPanelY + 24, 120, kMainPanelH - 48);
     toneKnob.setBounds(416, kMainPanelY + 24, 120, kMainPanelH - 48);
 
+    presetBox.setBounds(332, 32, 276, 28);
     gateControl.setBounds(32, kFooterY + 6, 276, 74);
     qualityBox.setBounds(332, kFooterY + 28, 276, 28);
 }

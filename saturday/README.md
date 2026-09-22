@@ -126,7 +126,7 @@ Rescan or restart the DAW after installing.
 | | JSFX | VST3 / AU |
 |---|------|-----------|
 | UI | Simple | Full boutique UI |
-| Factory presets (29) | Yes — `Saturday.rpl` in FX dropdown | Not yet — save DAW/plugin presets manually |
+| Factory presets (29) | Yes — `Saturday.rpl` in FX dropdown | Yes — preset dropdown in plugin UI |
 | CPU | Very light | Slightly higher (JUCE wrapper) |
 | Install | `./install.sh` | Download from [Releases](https://github.com/whatever555/FreshSet/releases) |
 
@@ -197,7 +197,7 @@ If the list is empty after install, re-run `./install.sh`, rescan JSFX, or remov
 
 **VST3 / AU**
 
-Factory presets from `Saturday.rpl` are not bundled in the native plugin yet. Save your own settings via the DAW’s preset system (Reaper: **+** in the FX window; Logic: plug-in settings menu; etc.).
+Use the **preset dropdown** in the top-right of the plugin window. All **29 factory presets** from `Saturday.rpl` are included. You can also save your own settings via the DAW’s preset system (Reaper: **+** in the FX window; Logic: plug-in settings menu; etc.).
 
 ### UI tips
 

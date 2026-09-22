@@ -2,6 +2,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "SaturdayDSP.h"
+#include "SaturdayPresets.h"
 
 class SaturdayAudioProcessor final : public juce::AudioProcessor
 {
@@ -22,11 +23,15 @@ public:
     bool isMidiEffect() const override { return false; }
     double getTailLengthSeconds() const override { return 0.0; }
 
-    int getNumPrograms() override { return 1; }
-    int getCurrentProgram() override { return 0; }
-    void setCurrentProgram(int) override {}
-    const juce::String getProgramName(int) override { return {}; }
+    int getNumPrograms() override { return kNumFactoryPresets; }
+    int getCurrentProgram() override { return currentPresetIndex; }
+    void setCurrentProgram(int index) override;
+    const juce::String getProgramName(int index) override;
     void changeProgramName(int, const juce::String&) override {}
+
+    void applyPreset(int index);
+    int getCurrentPresetIndex() const { return currentPresetIndex; }
+    juce::ChangeBroadcaster presetBroadcaster;
 
     void getStateInformation(juce::MemoryBlock& destData) override;
     void setStateInformation(const void* data, int sizeInBytes) override;
@@ -38,6 +43,9 @@ public:
 
 private:
     SaturdayEngine engine;
+    int currentPresetIndex = 0;
+
+    void setParameterValue(const juce::String& id, float value);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SaturdayAudioProcessor)
 };

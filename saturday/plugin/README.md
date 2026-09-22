@@ -59,7 +59,13 @@ Same parameters as the JSFX version:
 
 ## Presets
 
-Factory presets from `Saturday.rpl` are **JSFX-only** for now. On VST3/AU, save and recall settings through your DAW’s preset system.
+The plugin includes all **29 factory presets** from `Saturday.rpl`, selectable via the **preset dropdown** in the top-right of the UI. DAWs can also browse factory programs through the host’s preset menu. Save custom settings through your DAW’s preset system as usual.
+
+To regenerate preset data after editing `Saturday.rpl`:
+
+```bash
+python3 scripts/generate-presets.py
+```
 
 ## Build from source
 

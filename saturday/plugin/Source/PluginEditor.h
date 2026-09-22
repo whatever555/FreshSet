@@ -119,7 +119,8 @@ private:
 };
 
 class SaturdayAudioProcessorEditor final : public juce::AudioProcessorEditor,
-                                           private juce::Timer
+                                           private juce::Timer,
+                                           private juce::ChangeListener
 {
 public:
     explicit SaturdayAudioProcessorEditor(SaturdayAudioProcessor&);
@@ -137,6 +138,7 @@ private:
     SaturdayMeter inMeter, outMeter;
     juce::Slider gateSlider;
     SaturdayGateControl gateControl;
+    juce::ComboBox presetBox;
     juce::ComboBox qualityBox;
     SaturdayComboLookAndFeel comboLnF;
 
@@ -148,6 +150,9 @@ private:
     void timerCallback() override;
     void paintModeButton(juce::Graphics& g, juce::Rectangle<int> bounds, juce::String text, bool active) const;
     void styleQualityBox();
+    void stylePresetBox();
+    void syncPresetBox();
+    void changeListenerCallback(juce::ChangeBroadcaster*) override;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SaturdayAudioProcessorEditor)
 };

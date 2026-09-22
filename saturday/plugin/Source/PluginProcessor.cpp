@@ -35,6 +35,41 @@ SaturdayAudioProcessor::SaturdayAudioProcessor()
                            .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
       apvts(*this, nullptr, "Parameters", createParameterLayout())
 {
+    applyPreset(0);
+}
+
+void SaturdayAudioProcessor::setParameterValue(const juce::String& id, float value)
+{
+    if (auto* param = apvts.getParameter(id))
+        param->setValueNotifyingHost(param->convertTo0to1(value));
+}
+
+void SaturdayAudioProcessor::applyPreset(int index)
+{
+    index = juce::jlimit(0, kNumFactoryPresets - 1, index);
+    const auto& preset = kFactoryPresets[index];
+    currentPresetIndex = index;
+
+    setParameterValue(IDs::mode, static_cast<float>(juce::jlimit(0, 2, preset.mode)));
+    setParameterValue(IDs::drive, preset.drive);
+    setParameterValue(IDs::tone, preset.tone);
+    setParameterValue(IDs::mix, preset.mix);
+    setParameterValue(IDs::quality, static_cast<float>(juce::jlimit(0, 2, preset.quality)));
+    setParameterValue(IDs::gate, preset.gate);
+
+    presetBroadcaster.sendChangeMessage();
+}
+
+void SaturdayAudioProcessor::setCurrentProgram(int index)
+{
+    applyPreset(index);
+}
+
+const juce::String SaturdayAudioProcessor::getProgramName(int index)
+{
+    if (index >= 0 && index < kNumFactoryPresets)
+        return kFactoryPresets[index].name;
+    return {};
 }
 
 void SaturdayAudioProcessor::prepareToPlay(double sampleRate, int)
