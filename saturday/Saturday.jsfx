@@ -1,6 +1,6 @@
 desc:Saturday
 author:Whatever555
-version:3.4
+version:3.5
 about:
   # Saturday
 
@@ -979,7 +979,7 @@ gfx_roundrect(8, 8, 464, 52, 8);
 gfx_setfont(1, "Arial", 26);
 sat_gfx_text(COL_COPPER_R, COL_COPPER_G, COL_COPPER_B, "Saturday", 240, 26);
 gfx_setfont(1, "Arial", 12);
-sat_gfx_text(COL_TEXT_DIM_R, COL_TEXT_DIM_G, COL_TEXT_DIM_B, "Multi-mode Saturation  v3.4", 240, 48);
+sat_gfx_text(COL_TEXT_DIM_R, COL_TEXT_DIM_G, COL_TEXT_DIM_B, "Multi-mode Saturation  v3.5", 240, 48);
 
 // Mode buttons
 sat_gfx_mode_btn_draw(ui_btn_x0, ui_btn_y, ui_btn_w, ui_btn_h, 0, "Cassette");

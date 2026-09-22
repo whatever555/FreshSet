@@ -1,100 +1,137 @@
 # Saturday
 
-A beautiful, authentic-sounding multi-mode saturation plugin for Reaper. Adds warmth and character with a simple interface and gorgeous custom UI.
+Multi-mode saturation for [REAPER](https://www.reaper.fm/) — Cassette, Tube, and Iconic characters in one focused plugin with a custom copper-on-charcoal UI.
 
+**Author:** Whatever555 · **Version:** 3.5  
 **Modes:** Cassette · Tube · Iconic
+
+![Saturday UI — Tube mode](docs/images/saturday-ui-tube.png)
+
+## What it does
+
+Saturday adds warmth, weight, and character without a cluttered interface. Pick a mode, set Drive, shape with Tone, blend with Mix, and optionally gate saturation so it only kicks in above a level threshold.
+
+- **Cassette** — worn vintage: wow, glue, softened highs
+- **Tube** — mid-forward warmth and punch
+- **Iconic** — polished presence and air that opens on louder material
 
 ## Install
 
-### macOS (automatic)
+### Quick install (macOS)
+
+From this folder:
 
 ```bash
 chmod +x install.sh
 ./install.sh
 ```
 
-This copies the plugin to:
+The script copies these files into Reaper’s JSFX folder:
 
 ```
 ~/Library/Application Support/REAPER/Effects/reaper-plugins/
   Saturday.jsfx
   Saturday.rpl
+  Saturday.jsfx.rpl
+```
+
+On other platforms, set `REAPER_EFFECTS_DIR` before running if your Effects path differs:
+
+```bash
+REAPER_EFFECTS_DIR="$HOME/.config/REAPER/Effects/reaper-plugins" ./install.sh
 ```
 
 ### Manual install
 
-Copy `Saturday.jsfx` and `Saturday.rpl` into your Reaper Effects folder (same directory):
+Copy **`Saturday.jsfx`** and **`Saturday.rpl`** into the same Reaper Effects directory:
 
-- macOS: `~/Library/Application Support/REAPER/Effects/reaper-plugins/`
-- Windows: `%APPDATA%\REAPER\Effects\reaper-plugins\`
-- Linux: `~/.config/REAPER/Effects/reaper-plugins/`
+| Platform | Path |
+|----------|------|
+| macOS | `~/Library/Application Support/REAPER/Effects/reaper-plugins/` |
+| Windows | `%APPDATA%\REAPER\Effects\reaper-plugins\` |
+| Linux | `~/.config/REAPER/Effects/reaper-plugins/` |
 
-**Important:** Do not put `.preset` files inside the Effects folder — Reaper will list each one as a separate plugin. Factory presets ship in the single `Saturday.rpl` bank file.
+Also copy `Saturday.rpl` as `Saturday.jsfx.rpl` if factory presets do not appear in the preset dropdown (the install script does this automatically).
 
-If you previously installed to `reaper-plugins/saturday/`, delete that folder and reinstall.
+### After installing
 
-Rescan JSFX in Reaper if the plugin does not appear immediately.
+1. **Restart Reaper**, or go to **Preferences → Plug-ins → VST → Re-scan** (JSFX are picked up on rescan).
+2. Find the plugin at **FX → JS → reaper-plugins → Saturday**.
+3. If presets are empty, remove and re-add the FX, or run `./install.sh` again.
+
+### Troubleshooting
+
+- **Plugin not listed** — Confirm `Saturday.jsfx` is directly in `reaper-plugins/`, not in a nested subfolder. Delete any old `reaper-plugins/saturday/` folder from a previous install.
+- **Each preset shows as its own plugin** — Do not put individual `.preset` files in the Effects folder. Factory presets live in the single `Saturday.rpl` bank.
+- **Stale UI after an update** — Remove the FX from the track and insert it again, or restart Reaper.
 
 ## Usage
 
-1. Add **FX → JS → reaper-plugins → saturday → Saturday** to a track or bus.
-2. Open the plugin window for the custom UI.
-3. Choose a mode, set Drive, and adjust Tone/Mix to taste.
-4. Load factory presets from the **preset dropdown** at the top of the FX window (29 included). If empty after install, remove and re-add the FX, or rescan JSFX.
+### 1. Add Saturday to a track
 
-## Controls
+1. Select a track or bus.
+2. Click **FX** (or press `F`).
+3. Choose **Add → JS → reaper-plugins → Saturday**.
+4. Open the plugin window to use the custom UI (double-click the FX name in the chain if the window is closed).
 
-| Control | Description |
-|---------|-------------|
-| **Mode** | Cassette (worn vintage — wow, glue, muffled highs), Tube (mid-forward warmth), Iconic (aura glow — presence halo on words) |
+### 2. Choose a mode
+
+Click **Cassette**, **Tube**, or **Iconic** at the top. Mode changes are crossfaded so you can switch during playback without clicks.
+
+![Saturday UI — Iconic mode](docs/images/saturday-ui-iconic.png)
+
+### 3. Set the main controls
+
+| Control | What it does |
+|---------|----------------|
 | **Drive** | Saturation amount (0–100%) |
-| **Tone** | Tilt EQ — dark/warm (−) to bright (+) |
-| **Mix** | Wet/dry blend (0% = dry bypass, 100% = full saturation) |
-| **Gate** | Threshold slider (−80 dB = off, default −28 dB) — saturation only above level |
-| **Quality** | Standard / Hi-Fi / Ultra — higher settings reduce aliasing (more CPU) |
+| **Tone** | Tilt EQ — darker/warmer (−) to brighter (+) |
+| **Mix** | Wet/dry blend (0% = dry, 100% = full saturation) |
+
+**IN** and **OUT** meters on the left and right show input and output levels.
+
+### 4. Gate and Quality (footer)
+
+| Control | What it does |
+|---------|----------------|
+| **Gate** | Threshold (−80 dB = off). Saturation only applies when input is above the threshold. Default: −28 dB. |
+| **Quality** | Click to cycle **Standard → Hi-Fi → Ultra**. Higher settings reduce aliasing but use more CPU. |
+
+### 5. Load a factory preset
+
+Use the **preset dropdown** at the top of the Reaper FX window (not inside the custom UI). **29 factory presets** are included in `Saturday.rpl`.
+
+If the list is empty after install, re-run `./install.sh`, rescan JSFX, or remove and re-add the plugin.
 
 ### UI tips
 
-- **Drag** knobs vertically to adjust values.
-- **Ctrl+click** a knob to reset to default (Drive → 35%, Tone → 0, Mix → 100%).
-- **Double-click** Gate to reset to default (−28 dB).
-- **Click** mode buttons to switch character (crossfaded to prevent clicks).
+- **Drag** knobs up/down to adjust values.
+- **Ctrl+click** a knob to reset: Drive → 35%, Tone → 0, Mix → 100%.
+- **Double-click** the Gate control to reset to −28 dB.
+- **Shift+drag** Gate or knobs for finer adjustment.
 
-### Mode A/B test
+### Quick mode comparison
 
-To hear the difference clearly:
+To hear the modes clearly on the same source:
 
-1. Gate **Off** (drag fully left, or load **Cassette Night** / **Vocal Glow** / **Neon Presence**)
-2. Drive **40%**, Mix **100%**, Tone **0**
-3. Switch Cassette → Tube → Iconic on the same vocal phrase
-
-Cassette should sound worn and vintage — wobbly low end, tape glue, scooped mids, dull highs; Tube mid-forward and warm; Iconic adds a polished air/presence halo that opens on louder syllables.
+1. Set Gate to **Off** (drag fully left, or load **Cassette Night**, **Vocal Glow**, or **Neon Presence**).
+2. Drive **40%**, Mix **100%**, Tone **0**.
+3. Switch Cassette → Tube → Iconic on a vocal phrase or drum loop.
 
 ## Factory presets
 
-Presets set exactly what you see in the custom UI, plus **Quality** and **Gate**:
+Presets map to the visible controls plus **Quality** and **Gate**. Hidden legacy sliders (Output, Auto Gain) are ignored.
 
-| Preset field | Visible control |
-|--------------|-----------------|
-| Mode | Cassette / Tube / Iconic button |
-| Drive, Tone, Mix | Knobs |
-| Quality | Hi-Fi / Standard / Ultra button |
-| Gate | Gate slider |
-
-Hidden legacy sliders (Output, Auto Gain) are ignored — they no longer affect sound.
-
-Gate defaults to −28 dB. Showcase presets (**Cassette Night**, **Vocal Glow**, **Neon Presence**, **Lo-Fi Crush**) use Gate Off (−80) for obvious mode character.
-
-**Note:** Some presets use Mix below 100% (e.g. **Acoustic Air** 60%, **Parallel Sat** 45%) — that is intentional parallel blending, not a bug.
+Some presets use Mix below 100% (e.g. **Acoustic Air** 60%, **Parallel Sat** 45%) for intentional parallel blending.
 
 ### Vocals
 
 | Preset | Mode | Best for |
 |--------|------|----------|
-| Warm Tape | Tape | General vocal warmth |
+| Warm Tape | Cassette | General vocal warmth |
 | Vocal Glow | Iconic | Gentle aura layer — 18% drive, 40% mix |
 | Neon Presence | Iconic | Forward pop presence; 72% mix |
-| Quiet Line | Tape | Voiceover; warmth on words only |
+| Quiet Line | Cassette | Voiceover; warmth on words only |
 | Ribbon Vocal | Tube | Smooth, dark vocal body |
 
 ### Drums & room
@@ -122,47 +159,44 @@ Gate defaults to −28 dB. Showcase presets (**Cassette Night**, **Vocal Glow**,
 | Sunlit Strings | Iconic | String shimmer (58% mix) |
 | Synth Heat | Tube | Pads and synth harmonics |
 | Icon Driver | Iconic | Aggressive synth lead |
-| Cassette Night | Tape | Worn cassette on keys |
+| Cassette Night | Cassette | Worn cassette on keys |
 
 ### Bus, mix & master
 
 | Preset | Mode | Best for |
 |--------|------|----------|
-| Mix Glue | Tape | Group bus cohesion |
+| Mix Glue | Cassette | Group bus cohesion |
 | Bus Character | Tube | Mix bus weight |
 | Console Smoke | Tube | Parallel bus haze (38% mix) |
 | Parallel Sat | Tube | NY parallel saturation |
 | Bloom Stack | Iconic | Stack / bus harmonic bloom |
-| Master Saturday | Tape | Master bus finish |
-| Tape Print | Tape | Final print (4× OS) |
+| Master Saturday | Cassette | Master bus finish |
+| Tape Print | Cassette | Final print (4× OS) |
 
 ### Character & lo-fi
 
 | Preset | Mode | Best for |
 |--------|------|----------|
-| Subtle Warmth | Tape | Transparent color |
-| 2 Inch Machine | Tape | Classic fat tape |
-| Heavy Tape | Tape | Pushed tape crush |
-| Lo-Fi Crush | Tape | Aggressive degradation |
+| Subtle Warmth | Cassette | Transparent color |
+| 2 Inch Machine | Cassette | Classic fat tape |
+| Heavy Tape | Cassette | Pushed tape crush |
+| Lo-Fi Crush | Cassette | Aggressive degradation |
 | Bright Tube | Tube | Bright, forward saturation |
 
 ## Technical notes
 
-- All parameters are smoothed to prevent zipper noise.
-- Nonlinear processing supports 2×/4× internal oversampling.
-- Mode switches are crossfaded over 128 samples.
-- DC blocking and safety limiting protect against unstable output.
+- Parameters are smoothed to prevent zipper noise.
+- Nonlinear processing supports 2×/4× internal oversampling (Quality setting).
+- Mode switches crossfade over 128 samples.
+- DC blocking and soft limiting protect against unstable output.
 - Default settings (Drive 0, Mix 100%) pass audio cleanly with minimal coloration.
 
-## QA checklist
+## Files in this folder
 
-Before release, verify in Reaper:
-
-- [ ] Default state passes audio without runaway gain
-- [ ] Drive sweeps 0→100 on sine, drums, vocals — no clicks
-- [ ] Mode switching during playback — no pops
-- [ ] Sample rates: 44.1, 48, 96, 192 kHz
-- [ ] Extreme inputs (silence, hot signal) — no NaN or harsh output
-- [ ] Multiple instances on one project — stable CPU
-- [ ] Preset load/save round-trip — values match
-- [ ] Mono track input — correct stereo behavior
+| File | Purpose |
+|------|---------|
+| `Saturday.jsfx` | Plugin source and custom UI |
+| `Saturday.rpl` | Factory preset bank (29 presets) |
+| `Saturday-alt.rpl` | Alternate preset library name for some Reaper builds |
+| `install.sh` | Copies files into Reaper’s Effects folder |
+| `docs/images/` | README screenshots |
