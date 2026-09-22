@@ -1,0 +1,13 @@
+# Native plugin build output
+saturday/plugin/build/
+saturday/plugin/build-*/
+saturday/plugin/dist/
+
+# macOS
+.DS_Store
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*~

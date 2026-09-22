@@ -68,42 +68,48 @@ Also copy `Saturday.rpl` as `Saturday.jsfx.rpl` if factory presets do not appear
 2. Find the plugin at **FX → JS → reaper-plugins → Saturday**.
 3. If presets are empty, remove and re-add the FX, or run `./install.sh` again.
 
-### Native plugin — VST3 / AU / Standalone (macOS)
+### Native plugin — VST3 / AU (download, no Xcode required)
 
-The native build lives in **`plugin/`**. It targets macOS (AU + VST3 + Standalone). Windows/Linux builds are possible with JUCE but are not set up in this repo yet.
+Pre-built binaries for **macOS**, **Windows**, and **Linux** are published on GitHub when a release is tagged:
 
-**Build and install:**
+**[Download latest release →](https://github.com/whatever555/Saturday/releases)**
+
+| Download | Contents | Install location |
+|----------|----------|------------------|
+| `Saturday-macos.zip` | VST3 + AU (Apple Silicon & Intel) | See below |
+| `Saturday-windows.zip` | VST3 | `%LOCALAPPDATA%\Programs\Common\VST3\` |
+| `Saturday-linux.zip` | VST3 | `~/.vst3/` |
+
+**macOS — after unzipping:**
 
 ```bash
-cd plugin
-cmake -B build -G Xcode
-xcodebuild -project build/Saturday.xcodeproj -scheme Saturday_AU -configuration Release -jobs 8
-xcodebuild -project build/Saturday.xcodeproj -scheme Saturday_VST3 -configuration Release -jobs 8
+chmod +x install-macos.sh && ./install-macos.sh
 ```
 
-The first build downloads JUCE (~1–2 min). With `COPY_PLUGIN_AFTER_BUILD` enabled in CMake, successful builds install automatically to:
+Or copy manually:
 
-| Format | Install path |
-|--------|----------------|
-| **AU** | `~/Library/Audio/Plug-Ins/Components/Saturday.component` |
-| **VST3** | `~/Library/Audio/Plug-Ins/VST3/Saturday.vst3` |
-| **Standalone** | `plugin/build/Saturday_artefacts/Release/Standalone/Saturday.app` |
+- `Saturday.vst3` → `~/Library/Audio/Plug-Ins/VST3/`
+- `Saturday.component` → `~/Library/Audio/Plug-Ins/Components/`
 
-**Requirements:** macOS, Xcode command-line tools, CMake 3.22+ (`brew install cmake`).
+**Linux — after unzipping:**
 
-See **[plugin/README.md](plugin/README.md)** for full build notes and control reference.
+```bash
+chmod +x install-linux.sh && ./install-linux.sh
+```
 
-**Load in Reaper (VST3 or AU):**
+**Windows — after unzipping:**
 
-1. **FX → Add → VST3: Whatever555 → Saturday** (or **AU: Whatever555 → Saturday**).
-2. Rescan if needed: **Preferences → Plug-ins → VST** (and AU on macOS).
+Copy the `Saturday.vst3` folder to your VST3 directory (e.g. `%LOCALAPPDATA%\Programs\Common\VST3\`), then rescan in your DAW.
 
-**Load in other DAWs:**
+**Load in a DAW**
 
-- **Logic / GarageBand:** AU → Whatever555 → Saturday
-- **Ableton / others:** VST3 → Whatever555 → Saturday
+| DAW | Menu path |
+|-----|-----------|
+| **Reaper** | FX → VST3: Whatever555 → Saturday (macOS: AU also available) |
+| **Logic** | Audio FX → AU → Whatever555 → Saturday |
+| **Ableton** | Audio Effects → VST3 → Whatever555 → Saturday |
 
-Rescan or restart the DAW after the first install.
+Rescan or restart the DAW after installing.
 
 **JSFX vs native in Reaper**
 
@@ -112,7 +118,11 @@ Rescan or restart the DAW after the first install.
 | UI | Simple | Full boutique UI |
 | Factory presets (29) | Yes — `Saturday.rpl` in FX dropdown | Not yet — save DAW/plugin presets manually |
 | CPU | Very light | Slightly higher (JUCE wrapper) |
-| Install | `./install.sh` | Build from `plugin/` |
+| Install | `./install.sh` | Download from [Releases](https://github.com/whatever555/Saturday/releases) |
+
+**Build from source (optional)**
+
+Only needed if you want to hack on the plugin or no release exists yet for your platform. See **[plugin/README.md](plugin/README.md)**.
 
 ### Troubleshooting
 

@@ -5,6 +5,16 @@ project(Saturday VERSION 1.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+option(SATURDAY_COPY_AFTER_BUILD "Copy built plugins to OS install folders after build" ON)
+
+if(APPLE)
+    set(SATURDAY_FORMATS AU VST3 Standalone)
+elseif(WIN32)
+    set(SATURDAY_FORMATS VST3 Standalone)
+else()
+    set(SATURDAY_FORMATS VST3 Standalone)
+endif()
+
 include(FetchContent)
 FetchContent_Declare(
     JUCE
@@ -22,10 +32,10 @@ juce_add_plugin(Saturday
     NEEDS_MIDI_OUTPUT FALSE
     IS_MIDI_EFFECT FALSE
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
-    COPY_PLUGIN_AFTER_BUILD TRUE
+    COPY_PLUGIN_AFTER_BUILD ${SATURDAY_COPY_AFTER_BUILD}
     PLUGIN_MANUFACTURER_CODE Whf5
     PLUGIN_CODE Satu
-    FORMATS AU VST3 Standalone
+    FORMATS ${SATURDAY_FORMATS}
     PRODUCT_NAME "Saturday")
 
 target_sources(Saturday

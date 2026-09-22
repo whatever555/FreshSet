@@ -1,71 +1,44 @@
 # Saturday — VST3 / AU / Standalone
 
-Native macOS plugin with the full boutique UI. DSP matches **`../Saturday.jsfx`**.
+Native plugin with the full boutique UI. DSP matches **`../Saturday.jsfx`**.
 
 **Developer:** Whatever555 · **Version:** 1.0.0
 
-The Reaper JSFX build keeps a simpler UI and includes 29 factory presets in `Saturday.rpl`. Use this native build when you want the full UI or need Saturday outside Reaper.
+## Download (recommended)
 
-## Formats
+No Xcode or compiler needed — grab a pre-built zip for your OS:
 
-| Format | Extension | Typical use |
-|--------|-----------|-------------|
-| **AU** | `.component` | Logic, GarageBand, Reaper (macOS) |
-| **VST3** | `.vst3` | Reaper, Ableton, most DAWs |
-| **Standalone** | `.app` | Quick testing without a DAW |
+**[GitHub Releases →](https://github.com/whatever555/Saturday/releases)**
 
-## Requirements
+| Platform | Zip | Plug-in formats |
+|----------|-----|-----------------|
+| macOS | `Saturday-macos.zip` | VST3 + AU (universal: Apple Silicon & Intel) |
+| Windows | `Saturday-windows.zip` | VST3 |
+| Linux | `Saturday-linux.zip` | VST3 |
 
-- macOS with Xcode command-line tools (`xcode-select --install`)
-- CMake 3.22+ (`brew install cmake`)
+Each zip includes `INSTALL.txt` and a one-line install script where applicable.
 
-JUCE 8.0.6 is fetched automatically on first configure.
+### Install paths
 
-## Build
+| OS | VST3 | AU (macOS only) |
+|----|------|-----------------|
+| **macOS** | `~/Library/Audio/Plug-Ins/VST3/` | `~/Library/Audio/Plug-Ins/Components/` |
+| **Windows** | `%LOCALAPPDATA%\Programs\Common\VST3\` | — |
+| **Linux** | `~/.vst3/` (or `/usr/lib/vst3/` system-wide) | — |
 
-From this directory (`saturday/plugin/`):
-
-```bash
-cmake -B build -G Xcode
-xcodebuild -project build/Saturday.xcodeproj -scheme Saturday_AU -configuration Release -jobs 8
-xcodebuild -project build/Saturday.xcodeproj -scheme Saturday_VST3 -configuration Release -jobs 8
-```
-
-Optional standalone app:
-
-```bash
-xcodebuild -project build/Saturday.xcodeproj -scheme Saturday_Standalone -configuration Release -jobs 8
-```
-
-First build downloads JUCE (~1–2 min). Use **Xcode** as the generator — Unix Makefiles have failed on some CMake versions on macOS.
-
-## Install locations
-
-`COPY_PLUGIN_AFTER_BUILD` is enabled in `CMakeLists.txt`, so Release builds copy plugins automatically:
-
-| Format | Path |
-|--------|------|
-| **AU** | `~/Library/Audio/Plug-Ins/Components/Saturday.component` |
-| **VST3** | `~/Library/Audio/Plug-Ins/VST3/Saturday.vst3` |
-| **Standalone** | `build/Saturday_artefacts/Release/Standalone/Saturday.app` |
-
-**Manual install:** Copy the built `.component` or `.vst3` from `build/Saturday_artefacts/Release/` into the paths above.
-
-After installing, **rescan plugins** in your DAW (or restart Reaper / Logic).
+After copying, **rescan plug-ins** in your DAW.
 
 ## Load in a DAW
 
 | DAW | Menu path |
 |-----|-----------|
-| **Reaper** | FX → VST3: Whatever555 → Saturday, or AU: Whatever555 → Saturday |
+| **Reaper** | FX → VST3: Whatever555 → Saturday (macOS: AU also available) |
 | **Logic** | Audio FX → AU → Whatever555 → Saturday |
 | **Ableton** | Audio Effects → VST3 → Whatever555 → Saturday |
 
-If Saturday does not appear, confirm the file exists under `~/Library/Audio/Plug-Ins/` and trigger a plug-in scan.
-
 ## Controls
 
-Same parameters as the JSFX version. Mode buttons use the same names as the DSP:
+Same parameters as the JSFX version:
 
 | UI | Parameter | Range / values |
 |----|-----------|----------------|
@@ -84,11 +57,55 @@ Same parameters as the JSFX version. Mode buttons use the same names as the DSP:
 
 Factory presets from `Saturday.rpl` are **JSFX-only** for now. On VST3/AU, save and recall settings through your DAW’s preset system.
 
+## Build from source
+
+For developers only. CI builds all platforms automatically on push to `main`; tagged releases (`v*` or `plugin-v*`) publish the zips.
+
+### macOS
+
+```bash
+brew install cmake ninja
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release --parallel --target Saturday_VST3 Saturday_AU
+./scripts/package-release.sh macos
+```
+
+Or with Xcode: `cmake -B build -G Xcode` then `xcodebuild …`
+
+### Windows
+
+```powershell
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release --parallel --target Saturday_VST3
+bash scripts/package-release.sh windows
+```
+
+Requires Visual Studio 2022 build tools (preinstalled on a typical dev machine).
+
+### Linux (Ubuntu 22.04+)
+
+```bash
+sudo apt-get install -y build-essential ninja-build cmake \
+  libasound2-dev libjack-jackd2-dev ladspa-sdk libcurl4-openssl-dev \
+  libfreetype6-dev libx11-dev libxcomposite-dev libxcursor-dev libxext-dev \
+  libxinerama-dev libxrandr-dev libxrender-dev libgl1-mesa-dev libglu1-mesa-dev \
+  libwebkit2gtk-4.0-dev
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release --parallel --target Saturday_VST3
+./scripts/package-release.sh linux
+```
+
+Built artefacts land in `build/Saturday_artefacts/Release/`. Set `-DSATURDAY_COPY_AFTER_BUILD=OFF` on CI; leave default `ON` for local installs into system folders.
+
 ## Project layout
 
 ```
 plugin/
-  CMakeLists.txt          Build config (JUCE FetchContent)
+  CMakeLists.txt
+  scripts/
+    package-release.sh    Zip artefacts for distribution
+    install-macos.sh      Copy VST3 + AU to ~/Library/Audio/Plug-Ins/
+    install-linux.sh      Copy VST3 to ~/.vst3/
   Source/
     PluginProcessor.*     APVTS parameters, audio I/O
     PluginEditor.*        Custom UI
@@ -99,9 +116,10 @@ plugin/
 
 ## Troubleshooting
 
-- **Build fails with CMake + Makefiles** — Regenerate with `-G Xcode`.
-- **Stale UI after rebuild** — Remove the plugin from the track and insert a fresh instance.
-- **Code signing / gatekeeper (Standalone)** — Right-click → Open the first time, or sign with your Apple ID in Xcode if distributing.
+- **Plug-in not listed** — Confirm the file is in the correct folder and rescan.
+- **Stale UI after update** — Remove the FX instance and insert a fresh one.
+- **macOS Gatekeeper** — If blocked, right-click → Open, or build/sign locally.
+- **Linux** — Built on Ubuntu 22.04; other distros may need the dev libraries above to build, but the release binary should run on most recent glibc-based systems.
 
 ## Reaper JSFX
 
